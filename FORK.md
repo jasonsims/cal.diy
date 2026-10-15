@@ -83,7 +83,7 @@ In this repo `.claude/rules` is upstream's symlink to `agents/rules/`, so the fi
 
 ## Authentication
 
-Sign-in is Cal.diy's built-in email and password login. Google login and every other provider stay off (`GOOGLE_LOGIN_ENABLED` is unset), so no OAuth app is needed. Sign-up is open and email verification is off (the `email-verification` feature flag is disabled by default).
+Sign-in is Cal.diy's built-in email and password login. Google login and every other provider stay off (`GOOGLE_LOGIN_ENABLED` is unset), so no OAuth app is needed. Sign-up is open and email verification is off. Upstream's migration seeds the `email-verification` feature flag as enabled, and since email can't be sent here, new users would be stuck on the verify-email page. It was turned off in the database with `UPDATE "Feature" SET enabled = false WHERE slug = 'email-verification';`, and the `/api/trpc/features/map` endpoint shows its current value. Run that again if the database is ever recreated.
 
 Bots sign in without going through the UI:
 
