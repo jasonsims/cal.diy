@@ -237,6 +237,9 @@ const nextConfig = (phase: string): NextConfig => {
       optimizePackageImports: ["@calcom/ui"],
     },
     productionBrowserSourceMaps: true,
+    // FORK: Vercel Hobby's 8 GB build machine runs out of memory type-checking the monorepo, so Vercel builds skip
+    // it. Run `yarn type-check:ci --force` before pushing instead.
+    typescript: { ignoreBuildErrors: Boolean(process.env.VERCEL_ENV) },
     transpilePackages: [
       "@calcom/app-store",
       "@calcom/dayjs",
