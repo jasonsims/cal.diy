@@ -1177,8 +1177,6 @@ export class UserRepository {
         theme: true,
         appTheme: true,
         createdDate: true,
-        // FORK: returned by viewer.me.get as Pendo visitor metadata (apps/web/modules/pendo)
-        lastActiveAt: true,
         hideBranding: true,
         twoFactorEnabled: true,
         identityProvider: true,
