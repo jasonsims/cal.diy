@@ -56,6 +56,7 @@ In this repo `.claude/rules` is upstream's symlink to `agents/rules/`, so the fi
 | `FORK.md`, `agents/rules/fork.md` | New | Fork docs and Claude Code rules. |
 | `.nvmrc` | New, `24` | Node 24 LTS for local work, matching the Vercel project. Upstream CI still uses Node 20, which is end of life and deprecated on Vercel. |
 | `apps/web/vercel.json` | Every cron runs once a day (01:00 to 06:00 UTC) instead of every 1 to 5 minutes or every 12 hours | The Vercel Hobby plan only allows daily crons and rejects the deploy otherwise. Background tasks (`/api/tasks/cron`) and calendar syncs run daily, which is fine for a test site. Revert this if the project moves to Pro. |
+| `apps/web/vercel.json` | Removed the empty `"functions": {}` | Vercel rejects the deploy with "`functions` should NOT have fewer than 1 properties". |
 
 ## Deployment
 
