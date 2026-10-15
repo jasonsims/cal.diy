@@ -4,6 +4,7 @@ import { AppList } from "@calcom/features/apps/components/AppList";
 import DisconnectIntegrationModal from "@calcom/features/apps/components/DisconnectIntegrationModal";
 import SettingsHeader from "@calcom/features/settings/appDir/SettingsHeader";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
 import { Button } from "@calcom/ui/components/button";
@@ -11,7 +12,7 @@ import { EmptyScreen } from "@calcom/ui/components/empty-screen";
 import { SkeletonContainer, SkeletonText } from "@calcom/ui/components/skeleton";
 import { showToast } from "@calcom/ui/components/toast";
 import AppListCardWebWrapper from "@calcom/web/modules/apps/components/AppListCardWebWrapper";
-import { useReducer } from "react";
+import { useReducer, useRef } from "react";
 
 export type UpdateUsersDefaultConferencingAppParams = {
   appSlug: string;
@@ -63,6 +64,10 @@ export const InstalledConferencingApps = ({
 
   const updateLocationsMutation = trpc.viewer.eventTypes.bulkUpdateToDefaultLocation.useMutation();
 
+  // FORK: for Pendo track events. `defaultConferencingApp` is fetched on the server and isn't refreshed after
+  // a change on this page, so keep track of the latest default here.
+  const pendoDefaultAppSlugRef = useRef(defaultConferencingApp?.appSlug);
+
   const handleConnectDisconnectIntegrationMenuToggle = () => {
     utils.viewer.apps.integrations.invalidate();
   };
@@ -82,6 +87,14 @@ export const InstalledConferencingApps = ({
       {
         onSuccess: () => {
           showToast("Default app updated successfully", "success");
+          // FORK: Pendo track event.
+          pendo.track("default_conferencing_app_updated", {
+            appSlug,
+            hasAppLink: !!appLink,
+            previousDefaultAppSlug: pendoDefaultAppSlugRef.current,
+            source: "settings_conferencing",
+          });
+          pendoDefaultAppSlugRef.current = appSlug;
           utils.viewer.apps.getUsersDefaultConferencingApp.invalidate();
           onSuccessCallback();
         },
@@ -100,6 +113,12 @@ export const InstalledConferencingApps = ({
       },
       {
         onSuccess: () => {
+          // FORK: Pendo track event.
+          pendo.track("default_location_applied_to_event_types", {
+            eventTypeCount: eventTypeIds.length,
+            defaultAppSlug: pendoDefaultAppSlugRef.current,
+            source: "settings_conferencing",
+          });
           utils.viewer.apps.getUsersDefaultConferencingApp.invalidate();
           callback();
         },
@@ -208,6 +227,14 @@ export const ConferencingAppsViewWebWrapper = ({
       {
         onSuccess: () => {
           showToast(t("app_removed_successfully"), "success");
+          // FORK: Pendo track event.
+          pendo.track("app_uninstalled", {
+            credentialId,
+            appSlug: integrations.items.find((item) => item.userCredentialIds.includes(credentialId))?.slug,
+            category: "conferencing",
+            teamId,
+            source: "settings_conferencing",
+          });
           callback();
           utils.viewer.apps.integrations.invalidate();
           utils.viewer.calendars.connectedCalendars.invalidate();

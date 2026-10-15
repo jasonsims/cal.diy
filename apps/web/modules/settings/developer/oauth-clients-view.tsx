@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { EmptyScreen } from "@calcom/ui/components/empty-screen";
 import { showToast } from "@calcom/ui/components/toast";
@@ -26,7 +27,7 @@ const OAuthClientsView = () => {
   const { data: oAuthClients, isLoading } = trpc.viewer.oAuth.listUserClients.useQuery();
 
   const submitForReviewMutation = trpc.viewer.oAuth.submitClientForReview.useMutation({
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       setSubmittedClient({
         clientId: data.clientId,
         name: data.name,
@@ -36,6 +37,14 @@ const OAuthClientsView = () => {
         isPkceEnabled: data.isPkceEnabled,
       });
       showToast(t("oauth_client_submitted"), "success");
+      // FORK: Pendo track event. The client secret is never sent.
+      pendo.track("oauth_client_submitted", {
+        clientId: data.clientId,
+        status: data.status,
+        isPkceEnabled: data.isPkceEnabled,
+        hasLogo: !!variables.logo,
+        hasWebsiteUrl: !!variables.websiteUrl,
+      });
       utils.viewer.oAuth.listUserClients.invalidate();
     },
     onError: (error) => {

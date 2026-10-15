@@ -37,6 +37,7 @@ import { useRouterQuery } from "@calcom/lib/hooks/useRouterQuery";
 import useTheme from "@calcom/lib/hooks/useTheme";
 import isSmsCalEmail from "@calcom/lib/isSmsCalEmail";
 import { markdownToSafeHTML } from "@calcom/lib/markdownToSafeHTML";
+import { pendo } from "@calcom/lib/pendo";
 import { getEveryFreqFor } from "@calcom/lib/recurringStrings";
 import { getIs24hClockFromLocalStorage, isBrowserLocale24h } from "@calcom/lib/timeFormat";
 import { getTimeShiftFlags, getFirstShiftFlags } from "@calcom/lib/timeShift";
@@ -90,6 +91,10 @@ const querySchema = z.object({
   noShow: stringToBoolean,
   redirect_status: z.string().optional(),
 });
+
+// FORK: Pendo track event dedupe. The host no-show report is sent from a mount effect, so without this a
+// remount would report the same booking twice.
+const pendoTrackedHostNoShowBookingUids: Set<string> = new Set();
 
 const useBrandColors = ({
   brandColor,
@@ -212,9 +217,16 @@ export default function Success(props: PageProps) {
   const [isFeedbackSubmitted, setIsFeedbackSubmitted] = useState(false);
 
   const mutation = trpc.viewer.public.submitRating.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       setIsFeedbackSubmitted(true);
       showToast("Thank you, feedback submitted", "success");
+      // FORK: Pendo track event. Only whether a comment was left is sent, not its text.
+      pendo.track("booking_feedback_submitted", {
+        bookingUid: variables.bookingUid,
+        eventTypeId: eventType.id,
+        rating: variables.rating,
+        hasComment: !!variables.comment?.trim(),
+      });
     },
     onError: (err) => {
       showToast(err.message, "error");
@@ -222,8 +234,17 @@ export default function Success(props: PageProps) {
   });
 
   const hostNoShowMutation = trpc.viewer.public.markHostAsNoShow.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       showToast("Thank you, feedback submitted", "success");
+      // FORK: Pendo track event.
+      if (!pendoTrackedHostNoShowBookingUids.has(variables.bookingUid)) {
+        pendoTrackedHostNoShowBookingUids.add(variables.bookingUid);
+        pendo.track("host_no_show_reported", {
+          bookingUid: variables.bookingUid,
+          eventTypeId: eventType.id,
+          isRecurring: !!props.recurringBookings,
+        });
+      }
     },
     onError: (err) => {
       showToast(err.message, "error");

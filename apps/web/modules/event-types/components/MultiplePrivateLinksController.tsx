@@ -9,6 +9,7 @@ import { generateHashedLink } from "@calcom/lib/generateHashedLink";
 import { isLinkExpired as utilsIsLinkExpired } from "@calcom/lib/hashedLinksUtils";
 import { useCopy } from "@calcom/lib/hooks/useCopy";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import classNames from "@calcom/ui/classNames";
 import { Badge } from "@calcom/ui/components/badge";
@@ -282,6 +283,16 @@ export const MultiplePrivateLinksController = ({
                                 onClick={() => {
                                   copyToClipboard(singleUseURL);
                                   showToast(t("link_copied"), "success");
+                                  // FORK: Pendo track event.
+                                  pendo.track("booking_link_shared", {
+                                    eventTypeId: formMethods.getValues("id"),
+                                    shareMethod: "copy_private_link",
+                                    isPrivateLink: true,
+                                    activeHashedLinksCount: sortedLinksWithIndex.filter(
+                                      (link) => !link.expired
+                                    ).length,
+                                    source: "private_links_settings",
+                                  });
                                 }}
                               />
                             </Tooltip>

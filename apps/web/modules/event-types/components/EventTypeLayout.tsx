@@ -1,5 +1,6 @@
 import type { EventTypeSetupProps, FormValues } from "@calcom/features/eventtypes/lib/types";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { SchedulingType } from "@calcom/prisma/enums";
 import classNames from "@calcom/ui/classNames";
 import { Badge } from "@calcom/ui/components/badge";
@@ -85,6 +86,14 @@ function EventTypeSingleLayout({
   const permalink = `${bookerUrl}/${
     team ? `${!team.parentId ? "team/" : ""}${team.slug}` : formMethods.getValues("users")[0].username
   }/${eventType.slug}`;
+  // FORK: Pendo track event for copying the booking link from the editor header.
+  const trackBookingLinkCopied = (): void =>
+    pendo.track("booking_link_shared", {
+      eventTypeId: eventType.id,
+      shareMethod: "copy_link",
+      isPrivateLink: false,
+      source: "event_type_editor",
+    });
 
   const embedLink = `${
     team ? `team/${team.slug}` : formMethods.getValues("users")[0].username
@@ -180,6 +189,8 @@ function EventTypeSingleLayout({
                     onClick={() => {
                       navigator.clipboard.writeText(permalink);
                       showToast("Link copied!", "success");
+                      // FORK: Pendo track event.
+                      trackBookingLinkCopied();
                     }}
                   />
                 )}
@@ -236,6 +247,8 @@ function EventTypeSingleLayout({
                   onClick={() => {
                     navigator.clipboard.writeText(permalink);
                     showToast("Link copied!", "success");
+                    // FORK: Pendo track event.
+                    trackBookingLinkCopied();
                   }}>
                   {t("copy_link")}
                 </DropdownItem>

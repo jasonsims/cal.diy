@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { showToast } from "@calcom/ui/components/toast";
 import { usePathname, useRouter } from "next/navigation";
@@ -14,8 +15,16 @@ export default function UsersAddView() {
   const utils = trpc.useUtils();
 
   const mutation = trpc.viewer.users.add.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       showToast(t("user_added_successfully"), "success");
+      // FORK: Pendo track event. The new user's name, email and username are never sent.
+      pendo.track("admin_user_created", {
+        role: variables.role,
+        identityProvider: variables.identityProvider,
+        locale: variables.locale,
+        timeZone: variables.timeZone,
+        allowDynamicBooking: variables.allowDynamicBooking,
+      });
       await utils.viewer.users.list.invalidate();
       if (pathname !== null) {
         router.replace(pathname.replace("/add", ""));

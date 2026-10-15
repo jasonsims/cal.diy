@@ -18,6 +18,7 @@ import { OnboardingCard } from "../../components/OnboardingCard";
 import { OnboardingLayout } from "../../components/OnboardingLayout";
 import { OnboardingBrowserView } from "../../components/onboarding-browser-view";
 import { OnboardingContinuationPrompt } from "../../components/onboarding-continuation-prompt";
+import { trackPendoPersonalSettingsStep } from "../../lib/pendoOnboardingEvents";
 import { useOnboardingStore } from "../../store/onboarding-store";
 
 type PersonalSettingsViewProps = {
@@ -102,6 +103,9 @@ export const PersonalSettingsView = ({
       name: data.name,
       bio: data.bio || "",
     });
+
+    // FORK: Pendo track event, once the details are saved.
+    trackPendoPersonalSettingsStep({ bio: data.bio, avatar: imageSrc, username: user?.username });
 
     router.push("/onboarding/personal/calendar");
   });

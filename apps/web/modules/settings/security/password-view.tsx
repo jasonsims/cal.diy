@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 
 import SectionBottomActions from "@calcom/features/settings/SectionBottomActions";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { IdentityProvider } from "@calcom/prisma/enums";
 import { userMetadata as userMetadataSchema } from "@calcom/prisma/zod-utils";
 import type { RouterOutputs } from "@calcom/trpc/react";
@@ -89,6 +90,11 @@ const PasswordView = ({ user }: PasswordViewProps) => {
   const passwordMutation = trpc.viewer.auth.changePassword.useMutation({
     onSuccess: () => {
       showToast(t("password_has_been_changed"), "success");
+      // FORK: Pendo track event, before the signOut() below for inactive admins.
+      pendo.track("password_changed", {
+        userRole: data?.user.role,
+        identityProvider: user.identityProvider,
+      });
       formMethods.resetField("oldPassword");
       formMethods.resetField("newPassword");
 

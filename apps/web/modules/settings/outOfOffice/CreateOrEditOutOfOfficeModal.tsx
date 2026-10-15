@@ -3,6 +3,7 @@ import { Dialog } from "@calcom/features/components/controlled-dialog";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useDebounce } from "@calcom/lib/hooks/useDebounce";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import useMeQuery from "@calcom/trpc/react/hooks/useMeQuery";
 import classNames from "@calcom/ui/classNames";
@@ -193,13 +194,25 @@ export const CreateOrEditOutOfOfficeEntryModal = ({
   }, [holidaySettings, watchedDateRange]);
 
   const createOrEditOutOfOfficeEntry = trpc.viewer.ooo.outOfOfficeCreateOrUpdate.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast(
         currentlyEditingOutOfOfficeEntry
           ? t("success_edited_entry_out_of_office")
           : t("success_entry_created"),
         "success"
       );
+      // FORK: Pendo track event. Notes are free text, so only whether there are any is sent.
+      pendo.track("out_of_office_entry_saved", {
+        mode: currentlyEditingOutOfOfficeEntry ? "edit" : "create",
+        reasonId: variables.reasonId,
+        durationDays:
+          dayjs(variables.dateRange.endDate).diff(dayjs(variables.dateRange.startDate), "day") + 1,
+        startsInDays: dayjs(variables.dateRange.startDate).diff(dayjs().startOf("day"), "day"),
+        hasRedirect: !!variables.toTeamUserId,
+        hasNotes: !!variables.notes?.trim(),
+        showNotePublicly: !!variables.showNotePublicly,
+        overlappingHolidaysCount: overlappingHolidays.length,
+      });
       utils.viewer.ooo.outOfOfficeEntriesList.invalidate();
       closeModal();
     },

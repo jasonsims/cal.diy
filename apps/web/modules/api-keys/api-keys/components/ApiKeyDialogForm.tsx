@@ -7,6 +7,7 @@ import type { TApiKeys } from "~/api-keys/api-keys/components/ApiKeyListItem";
 import { API_NAME_LENGTH_MAX_LIMIT } from "@calcom/lib/constants";
 import { IS_CALCOM } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { Button } from "@calcom/ui/components/button";
 import { DialogFooter } from "@calcom/ui/components/dialog";
@@ -145,6 +146,15 @@ export default function ApiKeyDialogForm({
               const apiKey = await utils.client.viewer.apiKeys.create.mutate(event);
               setApiKey(apiKey);
               setApiKeyDetails({ ...event });
+              // FORK: Pendo track event. The key itself is never sent.
+              pendo.track("api_key_created", {
+                neverExpires: event.neverExpires,
+                expiresInDays:
+                  event.neverExpires || !event.expiresAt
+                    ? null
+                    : Math.round(dayjs(event.expiresAt).diff(dayjs(), "day", true)),
+                hasNote: !!event.note,
+              });
               await utils.viewer.apiKeys.list.invalidate();
               revalidateApiKeysList();
               setSuccessfulNewApiKeyModal(true);

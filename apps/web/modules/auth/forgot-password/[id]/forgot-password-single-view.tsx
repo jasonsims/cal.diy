@@ -6,6 +6,7 @@ import type { UseFormReturn } from "react-hook-form";
 import { useForm } from "react-hook-form";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import type { inferSSRProps } from "@calcom/types/inferSSRProps";
 import { Button } from "@calcom/ui/components/button";
 import { Form } from "@calcom/ui/components/form";
@@ -105,6 +106,8 @@ function PasswordResetForm({
       forceRefresh();
       return setError("newPassword", { type: "server", message: json.message });
     }
+    // FORK: Pendo track event. The requestId is the reset token, so it's deliberately not sent.
+    pendo.track("password_reset_completed", { success: true });
   };
 
   const passwordValue = watch("newPassword");

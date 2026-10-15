@@ -16,6 +16,12 @@ import { revalidateAvailabilityList } from "app/(use-page-wrapper)/(main-nav)/av
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  trackPendoBulkAppliedToEventTypes,
+  trackPendoDefaultScheduleChanged,
+  trackPendoScheduleCreated,
+  trackPendoScheduleDeletedFromList,
+} from "~/availability/lib/pendoAvailabilityEvents";
 
 type AvailabilityListProps = {
   availabilities: RouterOutputs["viewer"]["availability"]["list"];
@@ -51,14 +57,18 @@ export function AvailabilityList({ availabilities }: AvailabilityListProps) {
     onSettled: () => {
       utils.viewer.availability.list.invalidate();
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables, context) => {
       revalidateAvailabilityList();
       showToast(t("schedule_deleted_successfully"), "success");
+      // FORK: Pendo track event. `context` holds the list from before the optimistic removal.
+      trackPendoScheduleDeletedFromList(variables.scheduleId, context?.previousValue?.schedules);
     },
   });
 
   const updateMutation = trpc.viewer.availability.schedule.update.useMutation({
-    onSuccess: async ({ schedule }) => {
+    onSuccess: async ({ schedule, prevDefaultId, currentDefaultId }) => {
+      // FORK: Pendo track event. This list only uses the update mutation for "Set as default".
+      trackPendoDefaultScheduleChanged({ schedule, prevDefaultId, currentDefaultId }, availabilities);
       await utils.viewer.availability.list.invalidate();
       revalidateAvailabilityList();
       showToast(
@@ -93,6 +103,12 @@ export function AvailabilityList({ availabilities }: AvailabilityListProps) {
           utils.viewer.availability.list.invalidate();
           revalidateAvailabilityList();
           showToast(t("bulk_updated_schedule_successfully"), "success");
+          // FORK: Pendo track event.
+          trackPendoBulkAppliedToEventTypes(
+            "availability_list",
+            eventTypeIds,
+            eventTypesQueryData?.eventTypes
+          );
           callback();
         },
       }
@@ -104,7 +120,9 @@ export function AvailabilityList({ availabilities }: AvailabilityListProps) {
   };
 
   const duplicateMutation = trpc.viewer.availability.schedule.duplicate.useMutation({
-    onSuccess: async ({ schedule }) => {
+    onSuccess: async ({ schedule }, variables) => {
+      // FORK: Pendo track event.
+      trackPendoScheduleCreated(schedule.id, { sourceScheduleId: variables.scheduleId });
       await router.push(`/availability/${schedule.id}`);
       showToast(t("schedule_created_successfully", { scheduleName: schedule.name }), "success");
     },

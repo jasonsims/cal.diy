@@ -3,6 +3,7 @@ import { Controller, useForm } from "react-hook-form";
 
 import { Dialog } from "@calcom/features/components/controlled-dialog";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { BookingReportReason } from "@calcom/prisma/enums";
 import { trpc } from "@calcom/trpc/react";
 import { Alert } from "@calcom/ui/components/alert";
@@ -46,8 +47,17 @@ export const ReportBookingDialog = (props: IReportBookingDialog) => {
   });
 
   const { mutate: reportBooking, isPending } = trpc.viewer.bookings.reportBooking.useMutation({
-    async onSuccess(data) {
+    async onSuccess(data, variables) {
       showToast(data.message, "success");
+      // FORK: Pendo track event.
+      pendo.track("booking_reported", {
+        bookingUid: variables.bookingUid,
+        reason: variables.reason,
+        hasDescription: !!variables.description,
+        status,
+        willBeCancelled,
+        isRecurring: props.isRecurring,
+      });
       setIsOpenDialog(false);
       await utils.viewer.bookings.invalidate();
     },

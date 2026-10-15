@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import classNames from "@calcom/ui/classNames";
 import { Switch } from "@calcom/ui/components/form";
@@ -67,6 +68,15 @@ const CalendarSwitch = (props: ICalendarSwitchProps) => {
           throw new Error("Something went wrong");
         }
       }
+    },
+    // FORK: Pendo track event, once the conflict-check setting has been saved.
+    onSuccess: (_data, { isOn }) => {
+      pendo.track("calendar_conflict_check_toggled", {
+        integration: type,
+        isOn,
+        eventTypeId: eventTypeId ?? null,
+        isDelegationCredential: !!delegationCredentialId,
+      });
     },
     async onSettled() {
       await utils.viewer.apps.integrations.invalidate();

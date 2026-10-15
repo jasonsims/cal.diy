@@ -3,6 +3,7 @@
 import { WEBAPP_URL } from "@calcom/lib/constants";
 import { useDebounce } from "@calcom/lib/hooks/useDebounce";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { Avatar } from "@calcom/ui/components/avatar";
 import { Badge } from "@calcom/ui/components/badge";
@@ -30,8 +31,10 @@ export function UsersTable() {
   const [userToDelete, setUserToDelete] = useState<number | null>(null);
 
   const deleteMutation = trpc.viewer.users.delete.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       showToast(t("user_has_been_deleted"), "success");
+      // FORK: Pendo track event.
+      pendo.track("admin_user_account_action", { action: "delete", targetUserId: variables.userId });
       utils.viewer.admin.listPaginated.setInfiniteData({ limit: FETCH_LIMIT }, (cachedData) => {
         if (!cachedData) {
           return {
@@ -70,20 +73,33 @@ export function UsersTable() {
   );
 
   const sendPasswordResetEmail = trpc.viewer.admin.sendPasswordReset.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast(t("password_reset_email_sent"), "success");
+      // FORK: Pendo track event.
+      pendo.track("admin_user_account_action", {
+        action: "send_password_reset",
+        targetUserId: variables.userId,
+      });
     },
   });
 
   const removeTwoFactor = trpc.viewer.admin.removeTwoFactor.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast(t("two_factor_removed"), "success");
+      // FORK: Pendo track event.
+      pendo.track("admin_user_account_action", { action: "remove_2fa", targetUserId: variables.userId });
     },
   });
 
   const lockUserAccount = trpc.viewer.admin.lockUserAccount.useMutation({
-    onSuccess: ({ locked }) => {
+    onSuccess: ({ locked }, variables) => {
       showToast(locked ? t("user_locked") : t("user_unlocked"), "success");
+      // FORK: Pendo track event.
+      pendo.track("admin_user_account_action", {
+        action: locked ? "lock" : "unlock",
+        targetUserId: variables.userId,
+        locked,
+      });
       utils.viewer.admin.listPaginated.invalidate();
     },
   });

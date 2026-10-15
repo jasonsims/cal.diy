@@ -16,6 +16,7 @@ import { AppOnboardingSteps } from "@calcom/lib/apps/appOnboardingSteps";
 import { getAppOnboardingUrl } from "@calcom/lib/apps/getAppOnboardingUrl";
 import { WEBAPP_URL } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import type { Team } from "@calcom/prisma/client";
 import type { eventTypeBookingFields } from "@calcom/prisma/zod-utils";
 import type { EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
@@ -167,6 +168,15 @@ const OnboardingPage = ({
     onSuccess: (data) => {
       if (data?.setupPending) return;
       showToast(t("app_successfully_installed"), "success");
+      // FORK: Pendo track event. Installs that continue through OAuth or a setup page (setupPending) finish
+      // outside this page and aren't counted here.
+      pendo.track("app_installed", {
+        slug: appMetadata.slug,
+        app_type: appMetadata.type,
+        categories: appMetadata.categories,
+        is_conferencing: isConferencing,
+        installSource: "install_wizard",
+      });
     },
     onError: (error) => {
       if (error instanceof Error) showToast(error.message || t("app_could_not_be_installed"), "error");
@@ -279,6 +289,14 @@ const OnboardingPage = ({
                 }
                 try {
                   await Promise.all(mutationPromises);
+                  // FORK: Pendo track event, once every selected event type has been updated.
+                  if (mutationPromises.length > 0) {
+                    pendo.track("app_enabled_on_event_types", {
+                      appSlug: appMetadata.slug,
+                      isConferencing,
+                      eventTypeCount: mutationPromises.length,
+                    });
+                  }
                   router.push("/event-types");
                 } catch (err) {
                   console.error(err);

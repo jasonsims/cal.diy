@@ -1,4 +1,5 @@
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import classNames from "@calcom/ui/classNames";
 import { Button } from "@calcom/ui/components/button";
 import { showToast } from "@calcom/ui/components/toast";
@@ -36,6 +37,14 @@ export default function OmniInstallAppButton({
       onAppInstallSuccess();
       if (data?.setupPending) return;
       showToast(t("app_successfully_installed"), "success");
+      // FORK: Pendo track event. Installs that continue through OAuth or a setup page (setupPending) finish
+      // outside this component and aren't counted here.
+      pendo.track("app_installed", {
+        slug: app.slug,
+        app_type: app.type,
+        teamId,
+        installSource: "event_type_apps_tab",
+      });
     },
     onError: (error) => {
       if (error instanceof Error) showToast(error.message || t("app_could_not_be_installed"), "error");

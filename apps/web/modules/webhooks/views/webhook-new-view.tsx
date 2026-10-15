@@ -4,6 +4,7 @@ import { WEBHOOK_TRIGGER_EVENTS } from "@calcom/features/webhooks/lib/constants"
 import { subscriberUrlReserved } from "@calcom/features/webhooks/lib/subscriberUrlReserved";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
 import { revalidateWebhooksList } from "@calcom/web/app/(use-page-wrapper)/settings/(settings-layout)/developer/webhooks/(with-loader)/actions";
@@ -31,8 +32,20 @@ export const NewWebhookView = ({ webhooks, installedApps }: Props) => {
   const platform = searchParams?.get("platform") ? Boolean(searchParams.get("platform")) : false;
 
   const createWebhookMutation = trpc.viewer.webhook.create.useMutation({
-    async onSuccess() {
+    async onSuccess(_data, variables) {
       toastManager.add({ title: t("webhook_created_successfully"), type: "success" });
+      // FORK: Pendo track event. The subscriber URL and the secret are never sent.
+      pendo.track("webhook_created", {
+        eventTriggers: variables.eventTriggers,
+        eventTriggersCount: variables.eventTriggers.length,
+        active: variables.active,
+        hasPayloadTemplate: !!variables.payloadTemplate,
+        hasSecret: !!variables.secret,
+        version: variables.version,
+        time: variables.time,
+        timeUnit: variables.timeUnit,
+        scope: variables.teamId ? "team" : "user",
+      });
       await utils.viewer.webhook.list.invalidate();
       revalidateWebhooksList();
       router.push("/settings/developer/webhooks");

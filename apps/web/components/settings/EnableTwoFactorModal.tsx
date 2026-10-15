@@ -6,6 +6,7 @@ import { ErrorCode } from "@calcom/features/auth/lib/ErrorCode";
 import { Dialog } from "@calcom/features/components/controlled-dialog";
 import { useCallbackRef } from "@calcom/lib/hooks/useCallbackRef";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { Button } from "@calcom/ui/components/button";
 import { DialogContent, DialogFooter } from "@calcom/ui/components/dialog";
 import { Form, PasswordField } from "@calcom/ui/components/form";
@@ -137,6 +138,8 @@ const EnableTwoFactorModal = ({ onEnable, onCancel, open, onOpenChange }: Enable
 
       if (response.status === 200) {
         setStep(SetupStep.DisplayBackupCodes);
+        // FORK: Pendo track event.
+        pendo.track("two_factor_auth_enabled", { backupCodesCount: backupCodes.length });
         return;
       }
 

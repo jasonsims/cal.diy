@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 
 import { OAuthClientsAdminSkeleton } from "./oauth-clients-admin-skeleton";
@@ -58,6 +59,12 @@ export default function OAuthClientsAdminView() {
   const updateStatusMutation = trpc.viewer.oAuth.updateClient.useMutation({
     onSuccess: async (data) => {
       showToast(t("oauth_client_status_updated", { name: data.name, status: data.status }), "success");
+      // FORK: Pendo track event. This view only uses updateClient to approve or reject clients.
+      pendo.track("admin_oauth_client_reviewed", {
+        clientId: data.clientId,
+        status: data.status,
+        hasRejectionReason: !!data.rejectionReason,
+      });
 
       setSelectedClient((prev) => {
         if (!prev) return prev;

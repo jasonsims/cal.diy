@@ -12,6 +12,7 @@ import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { useTypedQuery } from "@calcom/lib/hooks/useTypedQuery";
 import { HttpError } from "@calcom/lib/http-error";
 import { md } from "@calcom/lib/markdownIt";
+import { pendo } from "@calcom/lib/pendo";
 import slugify from "@calcom/lib/slugify";
 import turndown from "@calcom/lib/turndownService";
 import { trpc } from "@calcom/trpc/react";
@@ -71,7 +72,15 @@ const DuplicateDialog = () => {
   }, [searchParams?.get("dialog")]);
 
   const duplicateMutation = trpc.viewer.eventTypesHeavy.duplicate.useMutation({
-    onSuccess: async ({ eventType }) => {
+    onSuccess: async ({ eventType }, variables) => {
+      // FORK: Pendo track event.
+      pendo.track("event_type_duplicated", {
+        sourceEventTypeId: variables.id,
+        eventTypeId: eventType.id,
+        length: eventType.length,
+        lengthChanged: variables.length !== defaultValues.length,
+        teamId: eventType.teamId,
+      });
       await router.replace(`/event-types/${eventType.id}`);
 
       await utils.viewer.eventTypes.getUserEventGroups.invalidate();

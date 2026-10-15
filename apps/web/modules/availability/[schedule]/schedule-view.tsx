@@ -14,6 +14,11 @@ import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
 import useMeQuery from "@calcom/trpc/react/hooks/useMeQuery";
 import { showToast } from "@calcom/ui/components/toast";
+import {
+  trackPendoBulkAppliedToEventTypes,
+  trackPendoScheduleDeletedFromEditor,
+  trackPendoScheduleUpdated,
+} from "~/availability/lib/pendoAvailabilityEvents";
 
 type PageProps = {
   scheduleData: RouterOutputs["viewer"]["availability"]["schedule"]["get"];
@@ -51,6 +56,13 @@ export const AvailabilitySettingsWebWrapper = ({
           revalidateAvailabilityList();
           callback();
           showToast(t("success"), "success");
+          // FORK: Pendo track event.
+          trackPendoBulkAppliedToEventTypes(
+            "schedule_editor",
+            eventTypeIds,
+            eventTypesQueryData?.eventTypes,
+            scheduleId
+          );
         },
       }
     );
@@ -63,7 +75,7 @@ export const AvailabilitySettingsWebWrapper = ({
   const isDefaultSchedule = me.data?.defaultScheduleId === scheduleId;
 
   const updateMutation = trpc.viewer.availability.schedule.update.useMutation({
-    onSuccess: async ({ prevDefaultId, currentDefaultId, ...data }) => {
+    onSuccess: async ({ prevDefaultId, currentDefaultId, ...data }, variables) => {
       if (prevDefaultId && currentDefaultId) {
         // check weather the default schedule has been changed by comparing  previous default schedule id and current default schedule id.
         if (prevDefaultId !== currentDefaultId) {
@@ -82,6 +94,13 @@ export const AvailabilitySettingsWebWrapper = ({
         }),
         "success"
       );
+      // FORK: Pendo track event.
+      trackPendoScheduleUpdated(variables, {
+        prevDefaultId,
+        currentDefaultId,
+        travelSchedules,
+        fromEventType,
+      });
     },
     onError: (err) => {
       if (err instanceof HttpError) {
@@ -100,6 +119,8 @@ export const AvailabilitySettingsWebWrapper = ({
     },
     onSuccess: () => {
       showToast(t("schedule_deleted_successfully"), "success");
+      // FORK: Pendo track event.
+      trackPendoScheduleDeletedFromEditor(scheduleId, isDefaultSchedule);
       revalidateAvailabilityList();
       router.push("/availability");
     },

@@ -3,7 +3,9 @@ import { useSession } from "next-auth/react";
 import { appStoreMetadata } from "@calcom/app-store/appStoreMetaData";
 import dayjs from "@calcom/dayjs";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { usePendoTrackOnSettle } from "@calcom/lib/hooks/usePendoTrackOnSettle";
 import { isMac } from "@calcom/lib/isMac";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { Tooltip } from "@calcom/ui/components/tooltip";
 import {
@@ -14,7 +16,7 @@ import {
   ExternalLinkIcon,
   SearchIcon,
 } from "@coss/ui/icons";
-import type { Action } from "kbar";
+import type { Action, ActionImpl, KBarOptions } from "kbar";
 import {
   KBarAnimator,
   KBarPortal,
@@ -307,11 +309,41 @@ function useUpcomingBookingsAction(): void {
   useRegisterActions(bookingActions, [bookingActions]);
 }
 
+// FORK: Pendo track events for the command palette. KBar renders results virtually, so Pendo feature tagging
+// can't reliably tell which one was picked. The selection callback doesn't receive the search query, so
+// RenderResults keeps the current one here.
+let pendoKbarSearchQuery = "";
+
+const getPendoKbarActionType = (action: ActionImpl): string => {
+  if (action.id.startsWith("event-type-")) return "event_type";
+  if (action.id.startsWith("booking-")) return "booking";
+  if (action.section === "Installable Apps") return "app";
+  return "navigation";
+};
+
+const kbarOptions: KBarOptions = {
+  callbacks: {
+    onSelectAction: (action: ActionImpl): void => {
+      pendo.track("command_palette_action_selected", {
+        actionId: action.id,
+        section: typeof action.section === "string" ? action.section : action.section?.name,
+        actionType: getPendoKbarActionType(action),
+        searchQuery: pendoKbarSearchQuery.slice(0, 100),
+      });
+    },
+  },
+};
+
 const KBarRoot = ({ children }: { children: ReactNode }): JSX.Element => {
   const router = useRouter();
   const actions = useMemo(() => buildKbarActions(router.push), [router.push]);
 
-  return <KBarProvider actions={actions}>{children}</KBarProvider>;
+  // FORK: `options` adds the Pendo track event above.
+  return (
+    <KBarProvider actions={actions} options={kbarOptions}>
+      {children}
+    </KBarProvider>
+  );
 };
 
 function CommandKey(): JSX.Element {
@@ -463,6 +495,21 @@ function RenderResults(): JSX.Element {
 
   useEventTypesAction();
   useUpcomingBookingsAction();
+
+  // FORK: Pendo track events. Results only render while the palette is open, so the query resets on close.
+  useEffect(() => {
+    pendoKbarSearchQuery = searchQuery;
+    return () => {
+      pendoKbarSearchQuery = "";
+    };
+  }, [searchQuery]);
+  const trimmedSearchQuery = searchQuery.trim();
+  usePendoTrackOnSettle({
+    event: "command_palette_search_no_results",
+    settleKey: results.length === 0 && trimmedSearchQuery ? trimmedSearchQuery : null,
+    isReady: true,
+    getProperties: () => ({ searchQuery: trimmedSearchQuery.slice(0, 100) }),
+  });
 
   if (results.length === 0 && searchQuery.trim().length > 0) {
     return <NoResultsFound searchQuery={searchQuery} />;

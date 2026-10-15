@@ -26,6 +26,7 @@ import { pushGTMEvent } from "@calcom/lib/gtm";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useDebounce } from "@calcom/lib/hooks/useDebounce";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { INVALID_CLOUDFLARE_TOKEN_ERROR } from "@calcom/lib/server/checkCfTurnstileToken";
 import { IS_EUROPE } from "@calcom/lib/timezoneConstants";
 import { signupSchema as apiSignupSchema } from "@calcom/prisma/zod-utils";
@@ -260,6 +261,14 @@ export default function Signup({
 
       if (!result.ok) {
         if (isUserAlreadyExistsError(result)) {
+          // FORK: Pendo track event. This branch returns early, so it never reaches the catch below.
+          pendo.track("signup_failed", {
+            has_token: !!token,
+            is_org_invite: !!isOrgInviteByLink,
+            is_premium_username: premiumUsername,
+            username_taken: usernameTaken,
+            userAlreadyExists: true,
+          });
           showToast(t("account_already_exists_please_login"), "warning");
           const callbackUrl = token ? `/teams?token=${token}` : "/event-types";
           setTimeout(() => {
@@ -290,6 +299,18 @@ export default function Signup({
       if (process.env.NEXT_PUBLIC_GTM_ID) {
         pushGTMEvent("create_account", { email: data.email, user: data.username, lang: data.language });
       }
+
+      // FORK: Pendo track event for a completed signup, before signIn() redirects. Unlike the GTM event above,
+      // it doesn't include the email or username.
+      pendo.track("user_signed_up", {
+        has_token: !!token,
+        is_org_invite: !!isOrgInviteByLink,
+        is_premium_username: premiumUsername,
+        language: i18n.language,
+        emailVerificationEnabled: !!emailVerificationEnabled,
+        onboardingV3Enabled: !!onboardingV3Enabled,
+        hasCallbackUrl: !!searchParams?.get("callbackUrl"),
+      });
 
       const gettingStartedPath = onboardingV3Enabled ? "onboarding/getting-started" : "getting-started";
       const verifyOrGettingStarted = emailVerificationEnabled ? "auth/verify-email" : gettingStartedPath;
@@ -329,6 +350,15 @@ export default function Signup({
         org_slug: orgSlug,
         is_premium_username: premiumUsername,
         error_message: errorMessage,
+      });
+      // FORK: Pendo track event.
+      pendo.track("signup_failed", {
+        has_token: !!token,
+        is_org_invite: !!isOrgInviteByLink,
+        is_premium_username: premiumUsername,
+        username_taken: usernameTaken,
+        error_message: errorMessage.slice(0, 100),
+        userAlreadyExists: false,
       });
       formMethods.setError("apiError", { message: errorMessage });
     }

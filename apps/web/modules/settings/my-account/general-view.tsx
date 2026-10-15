@@ -5,6 +5,7 @@ import SectionBottomActions from "@calcom/features/settings/SectionBottomActions
 import { formatLocalizedDateTime } from "@calcom/lib/dayjs";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { localeOptions } from "@calcom/lib/i18n";
+import { pendo } from "@calcom/lib/pendo";
 import { nameOfDay } from "@calcom/lib/weekday";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
@@ -60,12 +61,26 @@ const GeneralView = ({ user, travelSchedules }: GeneralViewProps) => {
   const [isTZScheduleOpen, setIsTZScheduleOpen] = useState<boolean>(false);
 
   const mutation = trpc.viewer.me.updateProfile.useMutation({
-    onSuccess: async (res) => {
+    onSuccess: async (res, variables) => {
       await utils.viewer.me.invalidate();
       revalidateSettingsGeneral();
       revalidateTravelSchedules();
       reset(getValues());
       showToast(t("settings_updated_successfully"), "success");
+      // FORK: Pendo track event. Each toggle saves only its own field; the form saves the rest together.
+      const changedSettings = Object.keys(variables);
+      pendo.track("general_settings_updated", {
+        settingChanged: changedSettings.length === 1 ? changedSettings[0] : "general_preferences",
+        locale: variables.locale,
+        timeZone: variables.timeZone,
+        timeFormat: variables.timeFormat,
+        weekStart: variables.weekStart,
+        travelSchedulesCount: variables.travelSchedules?.length,
+        allowDynamicBooking: variables.allowDynamicBooking,
+        allowSEOIndexing: variables.allowSEOIndexing,
+        receiveMonthlyDigestEmail: variables.receiveMonthlyDigestEmail,
+        requiresBookerEmailVerification: variables.requiresBookerEmailVerification,
+      });
       await update(res);
 
       if (res.locale) {

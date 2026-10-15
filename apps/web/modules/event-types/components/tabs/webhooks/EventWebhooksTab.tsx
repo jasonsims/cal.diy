@@ -5,6 +5,7 @@ import { subscriberUrlReserved } from "@calcom/features/webhooks/lib/subscriberU
 import ServerTrans from "@calcom/lib/components/ServerTrans";
 import { APP_NAME } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { Alert } from "@calcom/ui/components/alert";
 import { Button } from "@calcom/ui/components/button";
@@ -50,10 +51,23 @@ export const EventWebhooksTab = ({ eventType }: Pick<EventTypeSetupProps, "event
   });
 
   const createWebhookMutation = trpc.viewer.webhook.create.useMutation({
-    async onSuccess() {
+    async onSuccess(_data, variables) {
       setCreateModalOpen(false);
       revalidateEventTypeEditPage(eventType.id);
       showToast(t("webhook_created_successfully"), "success");
+      // FORK: Pendo track event. The subscriber URL and the secret are never sent.
+      pendo.track("webhook_created", {
+        eventTriggers: variables.eventTriggers,
+        eventTriggersCount: variables.eventTriggers.length,
+        active: variables.active,
+        hasPayloadTemplate: !!variables.payloadTemplate,
+        hasSecret: !!variables.secret,
+        version: variables.version,
+        time: variables.time,
+        timeUnit: variables.timeUnit,
+        scope: "event_type",
+        eventTypeId: eventType.id,
+      });
       await utils.viewer.webhook.list.invalidate();
       await utils.viewer.eventTypes.get.invalidate();
     },

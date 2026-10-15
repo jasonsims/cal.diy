@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { ZTestTriggerInputSchema } from "@calcom/trpc/server/routers/viewer/webhook/testTrigger.schema";
 import { toastManager } from "@coss/ui/components/toast";
@@ -18,6 +19,15 @@ export default function WebhookTestDisclosure() {
   const payloadTemplate = useWatch({ name: "payloadTemplate" }) || null;
   const { t } = useLocale();
   const mutation = trpc.viewer.webhook.testTrigger.useMutation({
+    // FORK: Pendo track event with the ping result. The subscriber URL and the secret are never sent.
+    onSuccess(data, variables) {
+      pendo.track("webhook_test_ping_sent", {
+        ok: data.ok,
+        status: data.status,
+        hasPayloadTemplate: !!variables.payloadTemplate,
+        hasSecret: !!variables.secret,
+      });
+    },
     onError(err) {
       toastManager.add({ title: err.message, type: "error" });
     },

@@ -1,6 +1,7 @@
 import { useRouter } from "next/navigation";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { sessionStorage } from "@calcom/lib/webstorage";
 import { trpc } from "@calcom/trpc/react";
 import { showToast } from "@calcom/ui/components/toast";
@@ -38,6 +39,16 @@ export const useSubmitPersonalOnboarding = () => {
 
   const mutation = trpc.viewer.me.updateProfile.useMutation({
     onSuccess: async () => {
+      // FORK: Pendo track event, only on the transition into a completed onboarding. The cached user still
+      // reflects the state from before this update, so finishing the last step again doesn't count twice.
+      if (!utils.viewer.me.get.getData()?.completedOnboarding) {
+        pendo.track("onboarding_completed", {
+          onboardingVersion: "v3",
+          defaultEventTypesCreated: eventTypes?.length === 0,
+          hasOnboardingRedirect: !!localStorage.getItem(ONBOARDING_REDIRECT_KEY),
+        });
+      }
+
       try {
         // Create default event types if user has none
         if (eventTypes?.length === 0) {

@@ -6,10 +6,12 @@ import { extractHostTimezone, filterActiveLinks } from "@calcom/lib/hashedLinksU
 import { useCopy } from "@calcom/lib/hooks/useCopy";
 import { useInViewObserver } from "@calcom/lib/hooks/useInViewObserver";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { usePendoTrackOnSettle } from "@calcom/lib/hooks/usePendoTrackOnSettle";
 import { useGetTheme } from "@calcom/lib/hooks/useTheme";
 import { useTypedQuery } from "@calcom/lib/hooks/useTypedQuery";
 import { HttpError } from "@calcom/lib/http-error";
 import { parseEventTypeColor } from "@calcom/lib/isEventTypeColor";
+import { pendo } from "@calcom/lib/pendo";
 import { localStorage } from "@calcom/lib/webstorage";
 import { MembershipRole, SchedulingType } from "@calcom/prisma/enums";
 import type { RouterOutputs } from "@calcom/trpc/react";
@@ -132,6 +134,22 @@ const InfiniteTeamsTab: FC<InfiniteTeamsTabProps> = (props: InfiniteTeamsTabProp
       getNextPageParam: (lastPage: { nextCursor: number | null | undefined }) => lastPage.nextCursor,
     }
   );
+
+  // FORK: Pendo track event once results arrive for the (already debounced) search term.
+  usePendoTrackOnSettle({
+    event: "event_types_searched",
+    settleKey: debouncedSearchTerm
+      ? `${activeEventTypeGroup?.teamId ?? "personal"}:${debouncedSearchTerm}`
+      : null,
+    isReady: query.isSuccess,
+    delayMs: 0,
+    getProperties: () => ({
+      searchQuery: debouncedSearchTerm.slice(0, 100),
+      resultsCount: query.data?.pages?.[0]?.eventTypes?.length ?? 0,
+      hasMoreResults: !!query.hasNextPage,
+      teamId: activeEventTypeGroup?.teamId,
+    }),
+  });
 
   const buttonInView = useInViewObserver(() => {
     if (!query.isFetching && query.hasNextPage && query.status === "success") {
@@ -346,6 +364,16 @@ export const InfiniteEventTypeList = ({
 
       return { previousValue };
     },
+    // FORK: Pendo track event. onMutate only applies the optimistic update, so track once the server confirms.
+    onSuccess: (_data, variables) => {
+      pendo.track("event_type_visibility_toggled", {
+        eventTypeId: variables.id,
+        hidden: variables.hidden,
+        schedulingType: pages
+          ?.flatMap((page) => page.eventTypes)
+          .find((eventType) => eventType.id === variables.id)?.schedulingType,
+      });
+    },
     onError: async (err, _, context) => {
       if (context?.previousValue) {
         utils.viewer.eventTypes.getEventTypesFromGroup.setInfiniteData(
@@ -439,8 +467,15 @@ export const InfiniteEventTypeList = ({
   };
 
   const deleteMutation = trpc.viewer.eventTypes.delete.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast(t("event_type_deleted_successfully"), "success");
+      // FORK: Pendo track event.
+      pendo.track("event_type_deleted", {
+        eventTypeId: variables.id,
+        schedulingType: deleteDialogTypeSchedulingType,
+        isManagedEventType: deleteDialogTypeSchedulingType === SchedulingType.MANAGED,
+        deleteSource: "event_types_list",
+      });
       setDeleteDialogOpen(false);
     },
     onMutate: async ({ id }) => {
@@ -555,6 +590,15 @@ export const InfiniteEventTypeList = ({
             const isChildrenManagedEventType =
               type.metadata?.managedEventConfig !== undefined &&
               type.schedulingType !== SchedulingType.MANAGED;
+            // FORK: Pendo track event for each way the booking link gets shared from this list.
+            const trackBookingLinkShared = (shareMethod: string, isPrivateLink: boolean): void =>
+              pendo.track("booking_link_shared", {
+                eventTypeId: type.id,
+                shareMethod,
+                isPrivateLink,
+                activeHashedLinksCount: activeHashedLinks.length,
+                source: "event_types_list",
+              });
             return (
               <li key={type.id}>
                 <div className="flex w-full items-center justify-between transition hover:bg-cal-muted">
@@ -640,6 +684,8 @@ export const InfiniteEventTypeList = ({
                                     onClick={() => {
                                       showToast(t("link_copied"), "success");
                                       copyToClipboard(calLink);
+                                      // FORK: Pendo track event.
+                                      trackBookingLinkShared("copy_link", false);
                                     }}
                                   />
                                 </Tooltip>
@@ -653,6 +699,8 @@ export const InfiniteEventTypeList = ({
                                       onClick={() => {
                                         showToast(t("private_link_copied"), "success");
                                         copyToClipboard(placeholderHashedLink);
+                                        // FORK: Pendo track event.
+                                        trackBookingLinkShared("copy_private_link", true);
                                         setPrivateLinkCopyIndices((prev) => {
                                           const prevIndex = prev[type.slug] ?? 0;
                                           const nextIndex = (prevIndex + 1) % activeHashedLinks.length;
@@ -766,6 +814,8 @@ export const InfiniteEventTypeList = ({
                                   onClick={() => {
                                     navigator.clipboard.writeText(calLink);
                                     showToast(t("link_copied"), "success");
+                                    // FORK: Pendo track event.
+                                    trackBookingLinkShared("copy_link", false);
                                   }}
                                   StartIcon="clipboard"
                                   className="w-full rounded-none text-left">
@@ -787,7 +837,11 @@ export const InfiniteEventTypeList = ({
                                       }),
                                       url: calLink,
                                     })
-                                    .then(() => showToast(t("link_shared"), "success"))
+                                    .then(() => {
+                                      showToast(t("link_shared"), "success");
+                                      // FORK: Pendo track event, only once the share sheet completes.
+                                      trackBookingLinkShared("native_share", false);
+                                    })
                                     .catch(() => showToast(t("failed"), "error"));
                                 }}
                                 StartIcon="upload"

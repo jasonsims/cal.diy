@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { Dialog } from "@calcom/features/components/controlled-dialog";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { Button } from "@calcom/ui/components/button";
 import { DialogContent, DialogFooter, DialogHeader } from "@calcom/ui/components/dialog";
@@ -23,8 +24,13 @@ export const RescheduleDialog = (props: IRescheduleDialog) => {
   const [rescheduleReason, setRescheduleReason] = useState("");
 
   const { mutate: rescheduleApi, isPending } = trpc.viewer.bookings.requestReschedule.useMutation({
-    async onSuccess() {
+    async onSuccess(_data, variables) {
       showToast(t("reschedule_request_sent"), "success");
+      // FORK: Pendo track event.
+      pendo.track("booking_reschedule_requested", {
+        bookingUid: variables.bookingUid,
+        hasRescheduleReason: !!variables.rescheduleReason?.trim(),
+      });
       setIsOpenDialog(false);
       await utils.viewer.bookings.invalidate();
     },

@@ -17,6 +17,7 @@ import { checkWCAGContrastColor } from "@calcom/lib/getBrandColours";
 import useGetBrandingColours from "@calcom/lib/getBrandColours";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import useTheme from "@calcom/lib/hooks/useTheme";
+import { pendo } from "@calcom/lib/pendo";
 import { validateBookerLayouts } from "@calcom/lib/validateBookerLayouts";
 import type { userMetadata } from "@calcom/prisma/zod-utils";
 import { trpc } from "@calcom/trpc/react";
@@ -129,11 +130,22 @@ const AppearanceView = ({
       document.documentElement.classList.contains("dark"));
 
   const mutation = trpc.viewer.me.updateProfile.useMutation({
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       await utils.viewer.me.invalidate();
       revalidateSettingsAppearance();
       revalidateHasTeamPlan();
       showToast(t("settings_updated_successfully"), "success");
+      // FORK: Pendo track event, with the resulting appearance settings.
+      pendo.track("appearance_settings_updated", {
+        settingChanged: Object.keys(variables).join(","),
+        appTheme: data.appTheme,
+        theme: data.theme,
+        defaultBookerLayout: data.metadata?.defaultBookerLayouts?.defaultLayout,
+        enabledBookerLayouts: data.metadata?.defaultBookerLayouts?.enabledLayouts,
+        brandColor: data.brandColor,
+        darkBrandColor: data.darkBrandColor,
+        hideBranding: data.hideBranding,
+      });
       resetBrandColorsThemeReset({ brandColor: data.brandColor, darkBrandColor: data.darkBrandColor });
       resetBookerLayoutThemeReset({ metadata: data.metadata });
       resetUserThemeReset({ theme: data.theme });

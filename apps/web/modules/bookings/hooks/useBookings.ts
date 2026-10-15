@@ -21,6 +21,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
 import { shallow } from "zustand/shallow";
+import { trackPendoBookingFailed, trackPendoBookingSucceeded } from "~/bookings/lib/pendoBookingEvents";
 
 export interface IUseBookings {
   event: {
@@ -128,6 +129,8 @@ export const useBookings = ({ event, hashedLink, bookingForm, metadata, isBookin
   const bookerFormErrorRef = useRef<HTMLDivElement>(null);
 
   const duration = useBookerStoreContext((state) => state.selectedDuration);
+  // FORK: Pendo track events report the Booker layout the booking was made from.
+  const layout = useBookerStoreContext((state) => state.layout);
 
   const isRescheduling = !!rescheduleUid && !!bookingData;
 
@@ -135,7 +138,7 @@ export const useBookings = ({ event, hashedLink, bookingForm, metadata, isBookin
 
   const createBookingMutation = useMutation({
     mutationFn: createBooking,
-    onSuccess: (booking) => {
+    onSuccess: (booking, bookingInput) => {
       if (booking.isDryRun) {
         if (isRescheduling) {
           sdkActionManager?.fire(
@@ -236,6 +239,18 @@ export const useBookings = ({ event, hashedLink, bookingForm, metadata, isBookin
         );
       }
 
+      // FORK: Pendo track event. Dry-run and decoy bookings have already returned above.
+      trackPendoBookingSucceeded({
+        booking,
+        bookingInput,
+        isRescheduling,
+        isRecurring: false,
+        requiresConfirmation: event.data?.requiresConfirmation,
+        isDynamic: event.data?.isDynamic,
+        layout,
+        previousStartTime: bookingData?.startTime,
+      });
+
       if (paymentUid) {
         router.push(
           createPaymentLink({
@@ -285,7 +300,7 @@ export const useBookings = ({ event, hashedLink, bookingForm, metadata, isBookin
             : event?.data?.forwardParamsSuccessRedirect,
       });
     },
-    onError: (err) => {
+    onError: (err, bookingInput) => {
       if (bookerFormErrorRef?.current) {
         bookerFormErrorRef.current.scrollIntoView({ behavior: "smooth" });
       }
@@ -294,6 +309,9 @@ export const useBookings = ({ event, hashedLink, bookingForm, metadata, isBookin
         data: { rescheduleUid: string; startTime: string; attendees: string[]; seatUid?: string };
         traceId?: string;
       };
+
+      // FORK: Pendo track event.
+      trackPendoBookingFailed({ error, bookingInput, isRescheduling, isRecurring: false });
 
       if (error.message === ErrorCode.BookerLimitExceededReschedule && error.data?.rescheduleUid) {
         setRescheduleUid(error.data?.seatUid ?? error.data?.rescheduleUid);
@@ -308,7 +326,7 @@ export const useBookings = ({ event, hashedLink, bookingForm, metadata, isBookin
 
   const createRecurringBookingMutation = useMutation({
     mutationFn: createRecurringBooking,
-    onSuccess: async (bookings) => {
+    onSuccess: async (bookings, bookingInputs) => {
       const booking = bookings[0] || {};
 
       if (booking.isDryRun) {
@@ -381,6 +399,18 @@ export const useBookings = ({ event, hashedLink, bookingForm, metadata, isBookin
         });
       }
 
+      // FORK: Pendo track event. Dry-run bookings have already returned above.
+      trackPendoBookingSucceeded({
+        booking,
+        bookingInput: bookingInputs[0],
+        isRescheduling,
+        isRecurring: true,
+        requiresConfirmation: event.data?.requiresConfirmation,
+        isDynamic: event.data?.isDynamic,
+        layout,
+        previousStartTime: bookingData?.startTime,
+      });
+
       bookingSuccessRedirect({
         successRedirectUrl: event?.data?.successRedirectUrl || "",
         query,
@@ -402,8 +432,15 @@ export const useBookings = ({ event, hashedLink, bookingForm, metadata, isBookin
             : event?.data?.forwardParamsSuccessRedirect,
       });
     },
-    onError: (err, _, ctx) => {
+    onError: (err, bookingInputs, ctx) => {
       console.error("Error creating recurring booking", err);
+      // FORK: Pendo track event.
+      trackPendoBookingFailed({
+        error: err,
+        bookingInput: bookingInputs[0],
+        isRescheduling,
+        isRecurring: true,
+      });
       // eslint-disable-next-line @calcom/eslint/no-scroll-into-view-embed -- It is only called when user takes an action in embed
       bookerFormErrorRef && bookerFormErrorRef.current?.scrollIntoView({ behavior: "smooth" });
     },

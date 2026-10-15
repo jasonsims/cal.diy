@@ -2,6 +2,7 @@
 
 import dayjs from "@calcom/dayjs";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { usePendoTrackOnSettle } from "@calcom/lib/hooks/usePendoTrackOnSettle";
 import { trpc } from "@calcom/trpc/react";
 import useMeQuery from "@calcom/trpc/react/hooks/useMeQuery";
 import { Alert } from "@calcom/ui/components/alert";
@@ -275,6 +276,34 @@ export function BookingListContainer(props: BookingListContainerProps) {
   });
 
   const bookings = useMemo(() => query.data?.bookings ?? [], [query.data?.bookings]);
+
+  // FORK: Pendo track event once a filtered query resolves. Multi-select filters update on every click, so
+  // the settle delay keeps it to one event per filter change. Only filter types are sent, never their values.
+  const hasActiveFilter = !!(
+    eventTypeIds?.length ||
+    teamIds?.length ||
+    userIds?.length ||
+    dateRange ||
+    attendeeName ||
+    attendeeEmail ||
+    bookingUid
+  );
+  usePendoTrackOnSettle({
+    event: "bookings_filtered",
+    settleKey: hasActiveFilter ? JSON.stringify([props.status, queryInput.filters]) : null,
+    isReady: query.isSuccess,
+    getProperties: () => ({
+      status: props.status,
+      eventTypeIdsCount: eventTypeIds?.length ?? 0,
+      teamIdsCount: teamIds?.length ?? 0,
+      userIdsCount: userIds?.length ?? 0,
+      hasDateRange: !!dateRange,
+      hasAttendeeNameFilter: !!attendeeName,
+      hasAttendeeEmailFilter: !!attendeeEmail,
+      hasBookingUidFilter: !!bookingUid,
+      totalCount: query.data?.totalCount,
+    }),
+  });
 
   // Always call the hook and provide navigation capabilities
   // The BookingDetailsSheet is only rendered when bookingsV3Enabled is true (see line 212)

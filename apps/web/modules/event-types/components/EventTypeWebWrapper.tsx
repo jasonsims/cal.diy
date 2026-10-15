@@ -9,6 +9,7 @@ import { WEBSITE_URL } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { useTypedQuery } from "@calcom/lib/hooks/useTypedQuery";
 import { HttpError } from "@calcom/lib/http-error";
+import { pendo } from "@calcom/lib/pendo";
 import { SchedulingType } from "@calcom/prisma/enums";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
@@ -125,7 +126,7 @@ const EventTypeWeb = ({
   });
 
   const updateMutation = trpc.viewer.eventTypesHeavy.update.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       const currentValues = form.getValues();
 
       currentValues.children = currentValues.children.map((child) => ({
@@ -142,6 +143,23 @@ const EventTypeWeb = ({
         // guests could still hit a stale cache and see the old page.
       }
       showToast(t("event_type_updated_successfully", { eventTypeTitle: eventType.title }), "success");
+
+      // FORK: Pendo track event. The mutation input only holds the changed fields (plus `id`), which shows
+      // which settings get used. The list is capped to stay within Pendo's property size limit.
+      const updatedFields = Object.keys(variables).filter((field) => field !== "id");
+      pendo.track("event_type_updated", {
+        eventTypeId: eventType.id,
+        updatedFields: updatedFields.slice(0, 8),
+        updatedFieldsCount: updatedFields.length,
+        tabName,
+        schedulingType: currentValues.schedulingType,
+        locationTypes: currentValues.locations?.map((location) => location.type),
+        requiresConfirmation: currentValues.requiresConfirmation,
+        seatsPerTimeSlot: currentValues.seatsPerTimeSlot,
+        hasRecurringEvent: !!currentValues.recurringEvent,
+        multiplePrivateLinksCount: currentValues.multiplePrivateLinks?.length ?? 0,
+        hidden: currentValues.hidden,
+      });
     },
     async onSettled() {
       await utils.viewer.eventTypes.get.invalidate();
@@ -304,6 +322,13 @@ const EventTypeWeb = ({
         // guests could still hit a stale cache and see the old page.
       }
       showToast(t("event_type_deleted_successfully"), "success");
+      // FORK: Pendo track event.
+      pendo.track("event_type_deleted", {
+        eventTypeId: eventType.id,
+        schedulingType: eventType.schedulingType,
+        isManagedEventType: eventType.schedulingType === SchedulingType.MANAGED,
+        deleteSource: "editor",
+      });
       isTeamEventTypeDeleted.current = true;
       appRouter.push("/event-types");
       setSlugExistsChildrenDialogOpen([]);

@@ -3,6 +3,7 @@
 import { getWebhookVersionLabel } from "@calcom/features/webhooks/lib/constants";
 import type { Webhook } from "@calcom/features/webhooks/lib/dto/types";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { revalidateEventTypeEditPage } from "@calcom/web/app/(use-page-wrapper)/event-types/[type]/actions";
 import { revalidateWebhooksList } from "@calcom/web/app/(use-page-wrapper)/settings/(settings-layout)/developer/webhooks/(with-loader)/actions";
@@ -70,6 +71,13 @@ export default function WebhookListItem(props: {
       if (webhook.eventTypeId) revalidateEventTypeEditPage(webhook.eventTypeId);
       revalidateWebhooksList();
       toastManager.add({ title: t("webhook_removed_successfully"), type: "success" });
+      // FORK: Pendo track event.
+      pendo.track("webhook_deleted", {
+        webhookId: webhook.id,
+        eventTypeId: webhook.eventTypeId,
+        eventTriggersCount: webhook.eventTriggers.length,
+        wasActive: webhook.active,
+      });
       await utils.viewer.webhook.getByViewer.invalidate();
       await utils.viewer.webhook.list.invalidate();
       await utils.viewer.eventTypes.get.invalidate();

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { UserAdminTeams } from "@calcom/features/users/repositories/UserRepository";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { usePendoTrackOnSettle } from "@calcom/lib/hooks/usePendoTrackOnSettle";
 import type { AppCategories } from "@calcom/prisma/client";
 import type { AppFrontendPayload as App } from "@calcom/types/App";
 import type { CredentialFrontendPayload as Credential } from "@calcom/types/Credential";
@@ -171,6 +172,19 @@ export function AllApps({ apps, searchText, categories, userAdminTeams }: AllApp
       else if (a.name > b.name) return 1;
       return 0;
     });
+
+  // FORK: Pendo track event once the search text settles, because it updates on every keystroke.
+  const trimmedSearchText = searchText?.trim() ?? "";
+  usePendoTrackOnSettle({
+    event: "app_store_searched",
+    settleKey: trimmedSearchText ? `${selectedCategory ?? "all"}:${trimmedSearchText}` : null,
+    isReady: true,
+    getProperties: () => ({
+      searchText: trimmedSearchText.slice(0, 100),
+      selectedCategory,
+      resultsCount: filteredApps.length,
+    }),
+  });
 
   return (
     <div>

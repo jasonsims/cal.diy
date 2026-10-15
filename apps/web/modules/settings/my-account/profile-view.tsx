@@ -9,6 +9,7 @@ import { emailSchema } from "@calcom/lib/emailSchema";
 import { getUserAvatarUrl } from "@calcom/lib/getAvatarUrl";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { md } from "@calcom/lib/markdownIt";
+import { pendo } from "@calcom/lib/pendo";
 import turndown from "@calcom/lib/turndownService";
 import { IdentityProvider } from "@calcom/prisma/enums";
 import type { RouterOutputs } from "@calcom/trpc/react";
@@ -71,7 +72,7 @@ const ProfileView = ({ user }: Props) => {
   const session = useSession();
   const { update } = session;
   const updateProfileMutation = trpc.viewer.me.updateProfile.useMutation({
-    onSuccess: async (res) => {
+    onSuccess: async (res, variables) => {
       await update(res);
       utils.viewer.me.invalidate();
       utils.viewer.me.shouldVerifyEmail.invalidate();
@@ -82,6 +83,19 @@ const ProfileView = ({ user }: Props) => {
       } else {
         showToast(t("settings_updated_successfully"), "success");
       }
+
+      // FORK: Pendo track event. Only the names of the changed fields are sent, never their values.
+      const updatedFields: string[] = (["name", "email", "bio", "avatarUrl", "username"] as const).filter(
+        (field) => (variables[field] ?? "") !== (user[field] ?? "")
+      );
+      if (variables.secondaryEmails?.length) updatedFields.push("secondaryEmails");
+      pendo.track("profile_updated", {
+        updatedFields,
+        hasEmailBeenChanged: !!res.hasEmailBeenChanged,
+        sendEmailVerification: res.sendEmailVerification,
+        hasAvatar: !!variables.avatarUrl,
+        hasBio: !!variables.bio?.trim(),
+      });
 
       setTempFormValues(null);
     },
@@ -139,6 +153,12 @@ const ProfileView = ({ user }: Props) => {
   const form = useForm<DeleteAccountValues>();
 
   const onDeleteMeSuccessMutation = async () => {
+    // FORK: Pendo track event, sent first so that it goes out before signOut() redirects.
+    pendo.track("account_deleted", {
+      identityProvider: user.identityProvider,
+      deletionMethod: isCALIdentityProvider ? "password" : "without_password",
+      usedTotpCode: !!form.getValues("totpCode"),
+    });
     await utils.viewer.me.invalidate();
     revalidateSettingsProfile();
 
