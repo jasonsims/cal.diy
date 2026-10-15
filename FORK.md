@@ -60,6 +60,7 @@ In this repo `.claude/rules` is upstream's symlink to `agents/rules/`, so the fi
 | `apps/web/vercel.json` | Every cron runs once a day (01:00 to 06:00 UTC) instead of every 1 to 5 minutes or every 12 hours | The Vercel Hobby plan only allows daily crons and rejects the deploy otherwise. Background tasks (`/api/tasks/cron`) and calendar syncs run daily, which is fine for a test site. Revert this if the project moves to Pro. |
 | `apps/web/next.config.ts` | `typescript.ignoreBuildErrors` when `VERCEL_ENV` is set (marked `// FORK:`) | `next build` type-checks the whole monorepo, and on Hobby's 8 GB build machine that gets the build SIGKILLed for running out of memory. Local builds still type-check. |
 | `apps/web/vercel.json` | Removed the empty `"functions": {}` | Vercel rejects the deploy with "`functions` should NOT have fewer than 1 properties". |
+| `packages/lib/apps/getInstallCountPerApp.ts` | Falls back to querying the database when `unstable_cache` throws "incrementalCache missing" (marked `// FORK:`) | tRPC runs in Pages Router API routes, where Next 16 has no incremental cache. Without this, `viewer.apps.integrations` returns 500 and the onboarding calendar step never enables its Skip and Continue buttons. Likely worth fixing upstream. |
 
 ## Deployment
 
