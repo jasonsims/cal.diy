@@ -18,6 +18,8 @@ This file records how the fork is maintained and every way it differs from upstr
 | `origin`   | `jasonsims/cal.diy` |
 | `upstream` | `calcom/cal.diy`  |
 
+GitHub Actions are disabled on the fork (Settings → Actions). Upstream's workflows need upstream's secrets and would fail on every push and sync. Re-enable with `gh api -X PUT repos/jasonsims/cal.diy/actions/permissions -F enabled=true` if the fork ever gets workflows of its own.
+
 Enable `git rerere` in each clone (`git config rerere.enabled true`) so conflict resolutions are remembered between syncs.
 
 ## Syncing with upstream
