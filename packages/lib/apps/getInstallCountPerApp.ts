@@ -29,10 +29,19 @@ const computeInstallCountsFromDB = async (): Promise<Record<string, number>> => 
 };
 
 const getInstallCountPerApp = async (): Promise<Record<string, number>> => {
-  return unstable_cache(async () => computeInstallCountsFromDB(), ["app-install-counts"], {
-    revalidate: 300,
-    tags: ["app-install-counts"],
-  })();
+  try {
+    return await unstable_cache(async () => computeInstallCountsFromDB(), ["app-install-counts"], {
+      revalidate: 300,
+      tags: ["app-install-counts"],
+    })();
+  } catch (error) {
+    // FORK: tRPC runs in Pages Router API routes, where Next 16 has no incremental cache and unstable_cache
+    // throws "Invariant: incrementalCache missing". Query directly there instead of failing the request.
+    if (error instanceof Error && error.message.includes("incrementalCache missing")) {
+      return computeInstallCountsFromDB();
+    }
+    throw error;
+  }
 };
 
 export default getInstallCountPerApp;
