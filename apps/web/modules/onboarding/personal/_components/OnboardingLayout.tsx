@@ -17,6 +17,8 @@ export const OnboardingLayout = ({ userEmail, currentStep, children }: Onboardin
   const { t } = useLocale();
 
   const handleSignOut = () => {
+    // FORK: so Pendo doesn't track whoever signs in next as this user
+    window.pendo?.clearSession?.();
     signOut({ callbackUrl: "/auth/logout" });
   };
 
