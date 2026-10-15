@@ -61,6 +61,9 @@ In this repo `.claude/rules` is upstream's symlink to `agents/rules/`, so the fi
 | `apps/web/next.config.ts` | `typescript.ignoreBuildErrors` when `VERCEL_ENV` is set (marked `// FORK:`) | `next build` type-checks the whole monorepo, and on Hobby's 8 GB build machine that gets the build SIGKILLed for running out of memory. Local builds still type-check. |
 | `apps/web/vercel.json` | Removed the empty `"functions": {}` | Vercel rejects the deploy with "`functions` should NOT have fewer than 1 properties". |
 | `packages/lib/apps/getInstallCountPerApp.ts` | Falls back to querying the database when `unstable_cache` throws "incrementalCache missing" (marked `// FORK:`) | tRPC runs in Pages Router API routes, where Next 16 has no incremental cache. Without this, `viewer.apps.integrations` returns 500 and the onboarding calendar step never enables its Skip and Continue buttons. Likely worth fixing upstream. |
+| `apps/web/components/PendoScript.tsx`, `apps/web/components/PendoIdentify.tsx`, `apps/web/lib/pendo.ts` | New | Novus (Pendo) web SDK: the install snippet, identifying the signed-in user with their metadata, resetting to an anonymous visitor after sign-out, and URL transforms that keep auth tokens out of the URLs Pendo records. |
+| `apps/web/app/layout.tsx` | Renders `PendoScript` in `<head>` and `PendoIdentify` inside `Providers` (marked `// FORK:`) | Installs Novus on every App Router page. The snippet is a plain inline script rather than `next/script` so that it runs before `instrumentation-client.ts`. |
+| `apps/web/instrumentation-client.ts` | Calls `initializePendo()` (marked `// FORK:`) | Initializes the Pendo agent exactly once per page load, before React hydrates. |
 
 ## Deployment
 

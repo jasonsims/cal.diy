@@ -1,6 +1,7 @@
 // This file configures the initialization of Sentry on the client.
 // The added config here will be used whenever a users loads a page in their browser.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
+import { initializePendo } from "@lib/pendo";
 import * as Sentry from "@sentry/nextjs";
 import { initBotId } from "botid/client/core";
 
@@ -65,3 +66,7 @@ if (
     ],
   });
 }
+
+// FORK: Novus (Pendo) is initialized exactly once per page load, here, before React hydrates. The install snippet
+// rendered by app/layout.tsx has already defined window.pendo, because it runs while the document is parsed.
+initializePendo();

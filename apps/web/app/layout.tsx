@@ -1,6 +1,8 @@
 import { getLocale } from "@calcom/features/auth/lib/getLocale";
 import { loadTranslations } from "@calcom/i18n/server";
 import { IconSprites } from "@calcom/ui/components/icon";
+import { PendoIdentify } from "@components/PendoIdentify";
+import { PendoScript } from "@components/PendoScript";
 import { buildLegacyRequest } from "@lib/buildLegacyCtx";
 import { dir } from "i18next";
 import { Inter } from "next/font/google";
@@ -128,6 +130,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             data-options='{"activationKey":"Meta+c"}'
           />
         )}
+        {/* FORK: Novus (Pendo) install snippet. instrumentation-client.ts initializes the agent it defines. */}
+        <PendoScript nonce={nonce} />
       </head>
       <body
         className="dark:bg-default bg-subtle antialiased"
@@ -161,6 +165,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
 
         <Providers isEmbed={isEmbed} nonce={nonce} country={country}>
+          {/* FORK: identifies the signed-in user to Novus (Pendo) and resets the visitor after sign-out. */}
+          <PendoIdentify />
           <AppRouterI18nProvider translations={translations} locale={locale} ns={ns}>
             {children}
           </AppRouterI18nProvider>
