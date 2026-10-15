@@ -8,6 +8,9 @@ import localFont from "next/font/local";
 import { cookies, headers } from "next/headers";
 import Script from "next/script";
 import type React from "react";
+// FORK: Novus by Pendo install (see FORK.md)
+import { PendoScript } from "~/pendo/components/PendoScript";
+import { PendoVisitorSync } from "~/pendo/components/PendoVisitorSync";
 
 import "../styles/globals.css";
 import { AppRouterI18nProvider } from "./AppRouterI18nProvider";
@@ -120,6 +123,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             --font-cal: ${calFont.style.fontFamily.replace(/\'/g, "")};
           }
         `}</style>
+        {/* FORK: Pendo install snippet and the single app-entry pendo.initialize */}
+        <PendoScript nonce={nonce || undefined} />
         {process.env.NODE_ENV === "development" && (
           <Script
             src="//unpkg.com/react-grab/dist/index.global.js"
@@ -161,6 +166,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
 
         <Providers isEmbed={isEmbed} nonce={nonce} country={country}>
+          {/* FORK: identifies the signed-in user in Pendo and clears the visitor after sign-out */}
+          <PendoVisitorSync />
           <AppRouterI18nProvider translations={translations} locale={locale} ns={ns}>
             {children}
           </AppRouterI18nProvider>

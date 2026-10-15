@@ -58,6 +58,9 @@ In this repo `.claude/rules` is upstream's symlink to `agents/rules/`, so the fi
 | `apps/web/vercel.json` | Every cron runs once a day (01:00 to 06:00 UTC) instead of every 1 to 5 minutes or every 12 hours | The Vercel Hobby plan only allows daily crons and rejects the deploy otherwise. Background tasks (`/api/tasks/cron`) and calendar syncs run daily, which is fine for a test site. Revert this if the project moves to Pro. |
 | `apps/web/next.config.ts` | `typescript.ignoreBuildErrors` when `VERCEL_ENV` is set (marked `// FORK:`) | `next build` type-checks the whole monorepo, and on Hobby's 8 GB build machine that gets the build SIGKILLed for running out of memory. Local builds still type-check. |
 | `apps/web/vercel.json` | Removed the empty `"functions": {}` | Vercel rejects the deploy with "`functions` should NOT have fewer than 1 properties". |
+| `apps/web/modules/pendo/`, `apps/web/global.d.ts` | New | Novus by Pendo web SDK. `PendoScript` is the install snippet plus the single `pendo.initialize`, with URL transforms that keep credentials (password reset, invite and verification tokens, OAuth `code`/`state`) out of recorded URLs. `PendoVisitorSync` identifies the signed-in user and clears the visitor after sign-out. |
+| `apps/web/app/layout.tsx`, `apps/web/pages/_document.tsx` | Render `PendoScript` in `<head>`; the root layout also mounts `PendoVisitorSync` inside `Providers` (marked `// FORK:`) | They are the HTML entry points for the App Router and the remaining Pages Router pages. |
+| `packages/features/users/repositories/UserRepository.ts`, `packages/trpc/server/routers/viewer/me/get.handler.ts` | `findUnlockedUserForSession` selects `lastActiveAt` and `viewer.me.get` returns it (marked `// FORK:`) | Sent to Pendo as visitor metadata. |
 
 ## Deployment
 

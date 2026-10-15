@@ -5,6 +5,8 @@ import type { DocumentContext, DocumentProps } from "next/document";
 import Document, { Head, Html, Main, NextScript } from "next/document";
 
 import { IS_PRODUCTION } from "@calcom/lib/constants";
+// FORK: Novus by Pendo install (see FORK.md)
+import { PendoScript } from "@calcom/web/modules/pendo/components/PendoScript";
 
 import { applyTheme, applyToDesktopClass } from "./../lib/pages/document/_applyThemeForDocument";
 
@@ -65,6 +67,8 @@ class MyDocument extends Document<Props> {
             `,
             }}
           />
+          {/* FORK: Pendo install snippet and the single app-entry pendo.initialize for Pages Router pages */}
+          <PendoScript />
           <link rel="apple-touch-icon" sizes="180x180" href="/api/logo?type=apple-touch-icon" />
           <link rel="icon" type="image/png" sizes="32x32" href="/api/logo?type=favicon-32" />
           <link rel="icon" type="image/png" sizes="16x16" href="/api/logo?type=favicon-16" />

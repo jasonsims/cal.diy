@@ -128,6 +128,8 @@ export const getHandler = async ({ ctx, input }: MeOptions) => {
     avatar: getUserAvatarUrl(user),
     avatarUrl: user.avatarUrl,
     createdDate: user.createdDate,
+    // FORK: sent to Pendo as visitor metadata
+    lastActiveAt: user.lastActiveAt,
     trialEndsAt: user.trialEndsAt,
     defaultScheduleId: user.defaultScheduleId,
     completedOnboarding: user.completedOnboarding,
