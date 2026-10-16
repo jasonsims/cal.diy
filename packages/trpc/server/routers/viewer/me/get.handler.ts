@@ -53,6 +53,16 @@ export const getHandler = async ({ ctx, input }: MeOptions) => {
     },
   });
 
+  // FORK: Pendo visitor metadata (apps/web/modules/pendo); the session user's select doesn't include it
+  const userActivity = await prisma.user.findUnique({
+    where: {
+      id: user.id,
+    },
+    select: {
+      lastActiveAt: true,
+    },
+  });
+
   let passwordAdded = false;
   if (user.identityProvider !== IdentityProvider.CAL && input?.includePasswordAdded) {
     const userWithPassword = await prisma.user.findUnique({
@@ -128,6 +138,9 @@ export const getHandler = async ({ ctx, input }: MeOptions) => {
     avatar: getUserAvatarUrl(user),
     avatarUrl: user.avatarUrl,
     createdDate: user.createdDate,
+    // FORK: Pendo visitor metadata (apps/web/modules/pendo)
+    uuid: user.uuid,
+    lastActiveAt: userActivity?.lastActiveAt ?? null,
     trialEndsAt: user.trialEndsAt,
     defaultScheduleId: user.defaultScheduleId,
     completedOnboarding: user.completedOnboarding,

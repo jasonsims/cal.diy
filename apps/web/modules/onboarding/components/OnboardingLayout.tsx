@@ -1,13 +1,12 @@
 "use client";
 
+import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { Button } from "@calcom/ui/components/button";
+import { Logo } from "@calcom/ui/components/logo";
 import classNames from "classnames";
 import { signOut } from "next-auth/react";
 import { Children, type ReactNode } from "react";
 import { Toaster } from "sonner";
-
-import { useLocale } from "@calcom/lib/hooks/useLocale";
-import { Button } from "@calcom/ui/components/button";
-import { Logo } from "@calcom/ui/components/logo";
 
 type OnboardingLayoutProps = {
   userEmail: string;
@@ -20,6 +19,8 @@ export const OnboardingLayout = ({ userEmail, currentStep, totalSteps, children 
   const { t } = useLocale();
 
   const handleSignOut = () => {
+    // FORK: so Pendo doesn't track whoever signs in next as this user
+    window.pendo?.clearSession?.();
     signOut({ callbackUrl: "/auth/logout" });
   };
 

@@ -190,6 +190,8 @@ export function UserDropdown({ small }: UserDropdownProps) {
           <MenuItem
             variant="destructive"
             onClick={() => {
+              // FORK: so Pendo doesn't track whoever signs in next as this user
+              window.pendo?.clearSession?.();
               signOut({ callbackUrl: "/auth/logout" });
             }}>
             <LogOutIcon />
