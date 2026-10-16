@@ -1,6 +1,7 @@
 import { getLocale } from "@calcom/features/auth/lib/getLocale";
 import { loadTranslations } from "@calcom/i18n/server";
 import { IconSprites } from "@calcom/ui/components/icon";
+import { PendoScript } from "@calcom/web/modules/pendo/components/PendoScript";
 import { buildLegacyRequest } from "@lib/buildLegacyCtx";
 import { dir } from "i18next";
 import { Inter } from "next/font/google";
@@ -128,6 +129,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             data-options='{"activationKey":"Meta+c"}'
           />
         )}
+        {/* FORK: Pendo (Novus) web SDK install snippet and initialize; see modules/pendo */}
+        <PendoScript nonce={nonce} />
       </head>
       <body
         className="dark:bg-default bg-subtle antialiased"
@@ -151,13 +154,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <IconSprites />
         <SpeculationRules
           // URLs In Navigation
-          prerenderPathsOnHover={[
-            "/event-types",
-            "/availability",
-            "/bookings/upcoming",
-            "/teams",
-            "/apps",
-          ]}
+          prerenderPathsOnHover={["/event-types", "/availability", "/bookings/upcoming", "/teams", "/apps"]}
         />
 
         <Providers isEmbed={isEmbed} nonce={nonce} country={country}>
