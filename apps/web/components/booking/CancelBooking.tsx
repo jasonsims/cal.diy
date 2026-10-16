@@ -5,6 +5,7 @@ import { isCancellationReasonRequired } from "@calcom/features/bookings/lib/canc
 import { shouldChargeNoShowCancellationFee } from "@calcom/features/bookings/lib/payment/shouldChargeNoShowCancellationFee";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { useRefreshData } from "@calcom/lib/hooks/useRefreshData";
+import { pendo } from "@calcom/lib/pendo";
 import type { CancellationReasonRequirement } from "@calcom/prisma/enums";
 import type { RecurringEvent } from "@calcom/types/Calendar";
 import classNames from "@calcom/ui/classNames";
@@ -309,6 +310,22 @@ export default function CancelBooking(props: Props) {
                     sdkActionManager?.fire("bookingCancelled", {
                       ...bookingCancelledEventProps,
                       booking: bookingWithCancellationReason,
+                    });
+                    // FORK: Pendo track event. The sdkActionManager event above only reaches embed parents.
+                    pendo.track("booking_cancelled", {
+                      bookingUid: booking?.uid,
+                      isHost: props.isHost,
+                      renderContext: props.renderContext,
+                      allRemainingBookings,
+                      hasCancellationReason: !!cancellationReason.trim(),
+                      isReasonRequired,
+                      hasInternalNote: !!internalNote,
+                      isSeatedBooking: !!seatReferenceUid,
+                      hasPayment: !!booking?.payment,
+                      cancellationNoShowFeeWarning,
+                      hoursUntilStart: booking?.startTime
+                        ? Math.round((new Date(booking.startTime).getTime() - Date.now()) / 3_600_000)
+                        : undefined,
                     });
                     refreshData();
                     if (props.onCanceled) {

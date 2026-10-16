@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { Badge } from "@calcom/ui/components/badge";
@@ -78,8 +79,13 @@ const FlagToggle = (props: { flag: Flag }) => {
   } = props;
   const utils = trpc.useUtils();
   const mutation = trpc.viewer.admin.toggleFeatureFlag.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast("Flags successfully updated", "success");
+      // FORK: Pendo track event. Global flags change behavior for every user, so keep an audit trail.
+      pendo.track("admin_feature_flag_toggled", {
+        slug: variables.slug,
+        enabled: variables.enabled,
+      });
       utils.viewer.features.list.invalidate();
       utils.viewer.features.map.invalidate();
     },

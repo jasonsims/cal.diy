@@ -13,6 +13,7 @@ import { useCopy } from "@calcom/lib/hooks/useCopy";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { useGetTheme } from "@calcom/lib/hooks/useTheme";
 import isSmsCalEmail from "@calcom/lib/isSmsCalEmail";
+import { pendo } from "@calcom/lib/pendo";
 import { getEveryFreqFor } from "@calcom/lib/recurringStrings";
 import type { AssignmentReason } from "@calcom/prisma/client";
 import { BookingStatus } from "@calcom/prisma/enums";
@@ -776,8 +777,16 @@ const Attendee = (
   const { copyToClipboard, isCopied } = useCopy();
 
   const noShowMutation = trpc.viewer.loggedInViewerRouter.markNoShow.useMutation({
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       showToast(data.message, "success");
+      // FORK: Pendo track event.
+      pendo.track("attendee_no_show_updated", {
+        bookingUid: variables.bookingUid,
+        attendeeCount: variables.attendees?.length ?? 0,
+        markedNoShowCount: variables.attendees?.filter((attendee) => attendee.noShow).length ?? 0,
+        unmarkedNoShowCount: variables.attendees?.filter((attendee) => !attendee.noShow).length ?? 0,
+        source: "attendee_dropdown",
+      });
       await utils.viewer.bookings.invalidate();
     },
     onError: (err) => {
@@ -867,8 +876,16 @@ const GroupedAttendees = (groupedAttendeeProps: GroupedAttendeeProps) => {
   const { t } = useLocale();
   const utils = trpc.useUtils();
   const noShowMutation = trpc.viewer.loggedInViewerRouter.markNoShow.useMutation({
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       showToast(t(data.message), "success");
+      // FORK: Pendo track event.
+      pendo.track("attendee_no_show_updated", {
+        bookingUid: variables.bookingUid,
+        attendeeCount: variables.attendees?.length ?? 0,
+        markedNoShowCount: variables.attendees?.filter((attendee) => attendee.noShow).length ?? 0,
+        unmarkedNoShowCount: variables.attendees?.filter((attendee) => !attendee.noShow).length ?? 0,
+        source: "grouped_attendees",
+      });
       await utils.viewer.bookings.invalidate();
     },
     onError: (err) => {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { BookingStatus } from "@calcom/prisma/enums";
 import { trpc } from "@calcom/trpc/react";
 import { showToast } from "@calcom/ui/components/toast";
@@ -26,13 +27,23 @@ export function useBookingConfirmation(options: UseBookingConfirmationOptions = 
   const { isRecurring = false, isTabRecurring = false, isTabUnconfirmed = false } = options;
 
   const mutation = trpc.viewer.bookings.confirm.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       if (data?.status === BookingStatus.REJECTED) {
         setRejectionDialogIsOpen(false);
         showToast(t("booking_rejection_success"), "success");
       } else {
         showToast(t("booking_confirmation_success"), "success");
       }
+      // FORK: Pendo track event. Accepting or rejecting from the email links goes through
+      // /api/verify-booking-token instead and isn't counted here.
+      pendo.track("booking_request_responded", {
+        bookingId: variables.bookingId,
+        decision: data?.status,
+        hasRejectionReason: !variables.confirmed && !!variables.reason,
+        isRecurring,
+        confirmedEntireSeries: !!variables.recurringEventId,
+        isTabUnconfirmed,
+      });
       utils.viewer.bookings.invalidate();
       utils.viewer.me.bookingUnconfirmedCount.invalidate();
     },

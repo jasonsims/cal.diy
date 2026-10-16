@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import dayjs from "@calcom/dayjs";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
 import classNames from "@calcom/ui/classNames";
@@ -39,6 +40,13 @@ const ApiKeyListItem = ({
 
   const deleteApiKey = trpc.viewer.apiKeys.delete.useMutation({
     async onSuccess() {
+      // FORK: Pendo track event. apiKey.id is the record id, not the key.
+      pendo.track("api_key_deleted", {
+        apiKeyId: apiKey.id,
+        isExpired: !!isExpired,
+        neverExpires,
+        wasUsed: !!apiKey.lastUsedAt,
+      });
       await utils.viewer.apiKeys.list.invalidate();
       revalidateApiKeysList();
       showToast(t("api_key_deleted"), "success");

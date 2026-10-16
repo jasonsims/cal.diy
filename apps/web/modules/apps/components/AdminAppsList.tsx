@@ -5,6 +5,7 @@ import { appKeysSchemas } from "@calcom/app-store/apps.keys-schemas.generated";
 import { Dialog } from "@calcom/features/components/controlled-dialog";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { AppCategories } from "@calcom/prisma/enums";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
@@ -69,6 +70,15 @@ const IntegrationContainer = ({
         enabled ? t("app_is_enabled", { appName: app.name }) : t("app_is_disabled", { appName: app.name }),
         "success"
       );
+      // FORK: Pendo track event.
+      pendo.track("admin_app_toggled", {
+        slug: app.slug,
+        enabled,
+        category,
+        requiresKeys: !!app.keys,
+        keysSaved: false,
+        fromSetupWizard: window.location.pathname.startsWith("/auth/setup"),
+      });
       if (enabled) {
         showKeyModal();
       }
@@ -209,6 +219,17 @@ const EditKeysModal: FC<{
   const saveKeysMutation = trpc.viewer.apps.saveKeys.useMutation({
     onSuccess: () => {
       showToast(fromEnabled ? t("app_is_enabled", { appName }) : t("keys_have_been_saved"), "success");
+      // FORK: Pendo track event. Apps that need keys get enabled by saving their keys (fromEnabled), not by
+      // the toggle mutation. Editing the keys of an enabled app isn't a toggle.
+      if (fromEnabled) {
+        pendo.track("admin_app_toggled", {
+          slug,
+          enabled: true,
+          requiresKeys: true,
+          keysSaved: true,
+          fromSetupWizard: window.location.pathname.startsWith("/auth/setup"),
+        });
+      }
       utils.viewer.apps.listLocal.invalidate();
       handleModelClose();
     },

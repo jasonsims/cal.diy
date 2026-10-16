@@ -6,6 +6,7 @@ import { emailRegex } from "@calcom/lib/emailSchema";
 import { getSafeRedirectUrl } from "@calcom/lib/getSafeRedirectUrl";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { Alert } from "@calcom/ui/components/alert";
 import { Icon } from "@calcom/ui/components/icon";
 import { LastUsed, useLastUsed } from "@calcom/web/modules/auth/hooks/useLastUsed";
@@ -162,12 +163,29 @@ export default function Login({
     // we're logged in! let's do a hard refresh to the desired url
     else if (!res.error) {
       setLastUsed("credentials");
+      // FORK: Pendo track event, before navigating away.
+      pendo.track("user_logged_in", {
+        loginMethod: "credentials",
+        twoFactorUsed: twoFactorRequired,
+        backupCodeUsed: twoFactorLostAccess,
+        lastUsed: lastUsed ?? null,
+      });
       router.push(callbackUrl);
     } else if (res.error === ErrorCode.SecondFactorRequired) setTwoFactorRequired(true);
     else if (res.error === ErrorCode.IncorrectBackupCode) setErrorMessage(t("incorrect_backup_code"));
     else if (res.error === ErrorCode.MissingBackupCodes) setErrorMessage(t("missing_backup_codes"));
     // fallback if error not found
     else setErrorMessage(errorMessages[res.error] || t("something_went_wrong"));
+
+    // FORK: Pendo track event for every failed sign-in. SecondFactorRequired isn't a failure, it only asks
+    // for the 2FA code.
+    if (!res || (res.error && res.error !== ErrorCode.SecondFactorRequired)) {
+      pendo.track("login_failed", {
+        errorCode: res?.error ?? ErrorCode.InternalServerError,
+        twoFactorRequired,
+        twoFactorLostAccess,
+      });
+    }
   };
 
   const showSocialLogin = isGoogleLoginEnabled || isOutlookLoginEnabled;

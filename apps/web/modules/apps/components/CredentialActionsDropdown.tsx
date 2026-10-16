@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { Button } from "@calcom/ui/components/button";
 import { ConfirmationDialogContent } from "@calcom/ui/components/dialog";
@@ -37,6 +38,12 @@ export default function CredentialActionsDropdown({
   const disconnectMutation = trpc.viewer.credentials.delete.useMutation({
     onSuccess: () => {
       showToast(t("app_removed_successfully"), "success");
+      // FORK: Pendo track event. This dropdown is only used for connected calendars.
+      pendo.track("app_uninstalled", {
+        credentialId,
+        category: "calendar",
+        source: "calendar_settings",
+      });
       onSuccess?.();
     },
     onError: () => {

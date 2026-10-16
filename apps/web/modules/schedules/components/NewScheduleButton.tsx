@@ -11,6 +11,7 @@ import { DialogContent, DialogFooter, DialogTrigger, DialogClose } from "@calcom
 import { Form } from "@calcom/ui/components/form";
 import { InputField } from "@calcom/ui/components/form";
 import { showToast } from "@calcom/ui/components/toast";
+import { trackPendoScheduleCreated } from "~/availability/lib/pendoAvailabilityEvents";
 
 export function NewScheduleButton({
   name = "new-schedule",
@@ -30,6 +31,8 @@ export function NewScheduleButton({
 
   const createMutation = trpc.viewer.availability.schedule.create.useMutation({
     onSuccess: async ({ schedule }) => {
+      // FORK: Pendo track event.
+      trackPendoScheduleCreated(schedule.id, { fromEventType: !!fromEventType });
       await router.push(`/availability/${schedule.id}${fromEventType ? "?fromEventType=true" : ""}`);
       showToast(t("schedule_created_successfully", { scheduleName: schedule.name }), "success");
       revalidateAvailabilityList();

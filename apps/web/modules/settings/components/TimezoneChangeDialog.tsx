@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import dayjs from "@calcom/dayjs";
 import { Dialog } from "@calcom/features/components/controlled-dialog";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { CURRENT_TIMEZONE } from "@calcom/lib/timezoneConstants";
 import { trpc } from "@calcom/trpc/react";
 import { DialogContent, DialogFooter, DialogHeader, DialogClose } from "@calcom/ui/components/dialog";
@@ -32,6 +33,11 @@ const TimezoneChangeDialogContent = () => {
       t("updated_timezone_to", { formattedCurrentTz, interpolation: { escapeValue: false } }),
       "success"
     );
+    // FORK: Pendo track event.
+    pendo.track("general_settings_updated", {
+      settingChanged: "timezone_prompt",
+      timeZone: CURRENT_TIMEZONE,
+    });
     await utils.viewer.me.invalidate();
   };
 

@@ -15,6 +15,7 @@ import { useBrandColors } from "@calcom/features/bookings/Booker/utils/use-brand
 import type { getPublicEvent } from "@calcom/features/eventtypes/lib/getPublicEvent";
 import { DEFAULT_DARK_BRAND_COLOR, DEFAULT_LIGHT_BRAND_COLOR, WEBAPP_URL } from "@calcom/lib/constants";
 import { useRouterQuery } from "@calcom/lib/hooks/useRouterQuery";
+import { pendo } from "@calcom/lib/pendo";
 import { localStorage } from "@calcom/lib/webstorage";
 import { useEvent, useScheduleForEvent } from "@calcom/web/modules/schedules/hooks/useEvent";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -166,11 +167,18 @@ const BookerWebWrapperComponent = (props: BookerWebWrapperAtomProps): JSX.Elemen
   });
 
   const verifyCode = useVerifyCode({
-    onSuccess: () => {
+    onSuccess: (isVerified) => {
       if (!bookerForm.formEmail) return;
 
       verifyEmail.setVerifiedEmail(bookerForm.formEmail);
       verifyEmail.setEmailVerificationModalVisible(false);
+      // FORK: Pendo track event.
+      pendo.track("booker_email_verified", {
+        eventTypeId: event.data?.id,
+        eventSlug: event.data?.slug,
+        isVerified,
+        requiresBookerEmailVerification: event.data?.requiresBookerEmailVerification,
+      });
       bookings.handleBookEvent();
     },
   });

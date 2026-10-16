@@ -29,6 +29,7 @@ import { APP_NAME, DEFAULT_LIGHT_BRAND_COLOR, DEFAULT_DARK_BRAND_COLOR } from "@
 import { weekdayToWeekIndex } from "@calcom/lib/dayjs";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { BookerLayouts } from "@calcom/prisma/zod-utils";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
@@ -882,6 +883,21 @@ const EmbedTypeCodeAndPreviewDialogContent = ({
     },
   });
 
+  // FORK: Pendo track event, with the chosen customization to show which embed options matter.
+  const trackEmbedCodeCopied = (): void =>
+    pendo.track("embed_code_copied", {
+      embedType,
+      embedTabName: embedParams.embedTabName,
+      eventId: Number.isNaN(parsedEventId) ? null : parsedEventId,
+      namespace,
+      theme: previewState.theme,
+      layout: previewState.layout,
+      hideEventTypeDetails: previewState.hideEventTypeDetails,
+      brandColorCustomized:
+        previewState.palette.brandColor !== (defaultBrandColor?.brandColor ?? null) ||
+        previewState.palette.darkBrandColor !== (defaultBrandColor?.darkBrandColor ?? null),
+    });
+
   const handleCopyEmailText = () => {
     const contentElement = emailContentRef.current;
     if (contentElement !== null) {
@@ -896,6 +912,8 @@ const EmbedTypeCodeAndPreviewDialogContent = ({
       }
 
       showToast(t("code_copied"), "success");
+      // FORK: Pendo track event.
+      trackEmbedCodeCopied();
     }
   };
 
@@ -1378,6 +1396,8 @@ const EmbedTypeCodeAndPreviewDialogContent = ({
                     }
                     navigator.clipboard.writeText(currentTabCodeEl.value);
                     showToast(t("code_copied"), "success");
+                    // FORK: Pendo track event.
+                    trackEmbedCodeCopied();
                   }
                 }}>
                 {embedType === "email" ? t("copy") : t("copy_code")}

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { showToast } from "@calcom/ui/components/toast";
 
@@ -68,9 +69,28 @@ export function WebPushProvider({ children }: ProviderProps) {
             addSubscription({ subscription: JSON.stringify(subscription) });
             setIsSubscribed(true);
             showToast("Notifications enabled successfully", "success");
+            // FORK: Pendo track event, with the outcome of the browser permission prompt.
+            pendo.track("push_notifications_toggled", {
+              action: "subscribe",
+              permission: newPermission,
+              success: true,
+            });
+          } else {
+            // FORK: Pendo track event.
+            pendo.track("push_notifications_toggled", {
+              action: "subscribe",
+              permission: newPermission,
+              success: false,
+            });
           }
         } catch (error) {
           console.error("Failed to subscribe:", error);
+          // FORK: Pendo track event.
+          pendo.track("push_notifications_toggled", {
+            action: "subscribe",
+            success: false,
+            errorName: error instanceof Error ? error.name : "unknown",
+          });
           if (
             error instanceof DOMException &&
             error.name === "InvalidAccessError" &&
@@ -95,6 +115,8 @@ export function WebPushProvider({ children }: ProviderProps) {
             removeSubscription({ subscription: subscriptionJson });
             setIsSubscribed(false);
             showToast("Notifications disabled successfully", "success");
+            // FORK: Pendo track event.
+            pendo.track("push_notifications_toggled", { action: "unsubscribe", permission, success: true });
           }
         } catch (error) {
           console.error("Failed to unsubscribe:", error);

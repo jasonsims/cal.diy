@@ -11,6 +11,7 @@ import { formatToLocalizedDate, formatToLocalizedTime } from "@calcom/lib/dayjs"
 import { emailRegex } from "@calcom/lib/emailSchema";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { markdownToSafeHTML } from "@calcom/lib/markdownToSafeHTML";
+import { pendo } from "@calcom/lib/pendo";
 import type { inferSSRProps } from "@calcom/types/inferSSRProps";
 import classNames from "@calcom/ui/classNames";
 import { Badge } from "@calcom/ui/components/badge";
@@ -530,12 +531,33 @@ export function VideoMeetingInfo(props: VideoMeetingInfo) {
   const [open, setOpen] = useState(false);
   const { booking, rediectAttendeeToOnExit } = props;
   const { t } = useLocale();
+  // FORK: for Pendo track events. The call runs in Daily's iframe, which Pendo can't see into.
+  const joinedMeetingAtRef = useRef<number | null>(null);
 
   const endTime = new Date(booking.endTime);
   const startTime = new Date(booking.startTime);
   const timeZone = booking.user?.timeZone;
 
+  // FORK: Pendo track event. Only hosts join with a Daily owner token.
+  useDailyEvent("joined-meeting", (event) => {
+    joinedMeetingAtRef.current = Date.now();
+    pendo.track("cal_video_meeting_joined", {
+      bookingUid: booking.uid,
+      joinType: event?.participants?.local?.owner ? "host" : "guest",
+      minutesFromScheduledStart: Math.round((Date.now() - startTime.getTime()) / 60_000),
+    });
+  });
+
   useDailyEvent("left-meeting", () => {
+    // FORK: Pendo track event.
+    pendo.track("cal_video_meeting_left", {
+      bookingUid: booking.uid,
+      minutesInMeeting:
+        joinedMeetingAtRef.current === null
+          ? null
+          : Math.round((Date.now() - joinedMeetingAtRef.current) / 6_000) / 10,
+      redirectedOnExit: !!rediectAttendeeToOnExit,
+    });
     if (rediectAttendeeToOnExit) {
       window.location.href = rediectAttendeeToOnExit;
     }

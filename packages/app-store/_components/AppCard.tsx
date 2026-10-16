@@ -5,6 +5,7 @@ import posthog from "posthog-js";
 import { useAppContextWithSchema } from "@calcom/app-store/EventTypeAppContext";
 import { useIsPlatform } from "@calcom/atoms/hooks/useIsPlatform";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import classNames from "@calcom/ui/classNames";
 import { Button } from "@calcom/ui/components/button";
 import { Switch } from "@calcom/ui/components/form";
@@ -100,6 +101,13 @@ export default function AppCard({
                     posthog.capture("event_type_app_switch_toggled", {
                       app_slug: app.slug,
                       enabled: enabled,
+                    });
+                    // FORK: Pendo track event. The toggle only persists once the event type is saved, which
+                    // event_type_updated records.
+                    pendo.track("event_type_app_toggled", {
+                      app_slug: app.slug,
+                      enabled,
+                      categories: app.categories,
                     });
                     if (switchOnClick) {
                       switchOnClick(enabled);

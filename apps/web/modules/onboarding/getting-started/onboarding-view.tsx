@@ -14,6 +14,7 @@ import { OnboardingCard } from "../components/OnboardingCard";
 import { OnboardingLayout } from "../components/OnboardingLayout";
 import { OnboardingContinuationPrompt } from "../components/onboarding-continuation-prompt";
 import { PlanIcon } from "../components/plan-icon";
+import { trackPendoOnboardingStep } from "../lib/pendoOnboardingEvents";
 import { type PlanType, useOnboardingStore } from "../store/onboarding-store";
 
 type OnboardingViewProps = {
@@ -73,6 +74,9 @@ export const OnboardingView = ({ userEmail }: OnboardingViewProps) => {
       posthog.capture("onboarding_plan_continue_clicked", {
         plan_type: selectedPlan,
       });
+      // FORK: Pendo track event. This fork has no routes for the team and organization plans, so plan_type
+      // also shows how often users pick one of those dead ends.
+      trackPendoOnboardingStep("plan_selection", { plan_type: selectedPlan });
     }
     startTransition(() => {
       if (selectedPlan === "organization") {

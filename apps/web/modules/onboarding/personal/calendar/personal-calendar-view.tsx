@@ -11,6 +11,7 @@ import { OnboardingCard } from "../../components/OnboardingCard";
 import { OnboardingLayout } from "../../components/OnboardingLayout";
 import { OnboardingCalendarBrowserView } from "../../components/onboarding-calendar-browser-view";
 import { useSubmitPersonalOnboarding } from "../../hooks/useSubmitPersonalOnboarding";
+import { trackPendoOnboardingStep } from "../../lib/pendoOnboardingEvents";
 import { InstallableAppCard } from "../_components/InstallableAppCard";
 import { useAppInstallation } from "../_components/useAppInstallation";
 
@@ -83,11 +84,23 @@ export const PersonalCalendarView = ({ userEmail }: PersonalCalendarViewProps) =
     };
   }, [queryIntegrations.data?.items]);
 
+  // FORK: Pendo track event for the calendar step, whether it's completed or skipped.
+  const trackCalendarStepCompleted = (wasSkipped: boolean): void =>
+    trackPendoOnboardingStep("connect_calendar", {
+      was_skipped: wasSkipped,
+      connectedCalendarsCount:
+        queryIntegrations.data?.items?.filter((app) => !!app.userCredentialIds?.length).length ?? 0,
+    });
+
   const handleContinue = () => {
+    // FORK: Pendo track event.
+    trackCalendarStepCompleted(false);
     submitPersonalOnboarding();
   };
 
   const handleSkip = () => {
+    // FORK: Pendo track event.
+    trackCalendarStepCompleted(true);
     submitPersonalOnboarding();
   };
 

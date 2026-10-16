@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { isDelegationCredential } from "@calcom/lib/delegationCredential";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import type { ButtonProps } from "@calcom/ui/components/button";
 import { DisconnectIntegrationComponent } from "@calcom/ui/components/disconnect-calendar-integration";
@@ -12,6 +13,8 @@ import { showToast } from "@calcom/ui/components/toast";
 export default function DisconnectIntegration(props: {
   credentialId: number;
   teamId?: number | null;
+  // FORK: for the Pendo app_uninstalled track event.
+  appSlug?: string;
   label?: string;
   trashIcon?: boolean;
   isGlobal?: boolean;
@@ -26,6 +29,13 @@ export default function DisconnectIntegration(props: {
   const mutation = trpc.viewer.credentials.delete.useMutation({
     onSuccess: () => {
       showToast(t("app_removed_successfully"), "success");
+      // FORK: Pendo track event.
+      pendo.track("app_uninstalled", {
+        credentialId,
+        appSlug: props.appSlug,
+        teamId,
+        source: "app_detail_page",
+      });
       setModalOpen(false);
       onSuccess && onSuccess();
     },

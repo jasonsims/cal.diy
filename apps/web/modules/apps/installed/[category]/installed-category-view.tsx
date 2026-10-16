@@ -7,6 +7,7 @@ import type { RemoveAppParams } from "@calcom/features/apps/components/Disconnec
 import DisconnectIntegrationModal from "@calcom/features/apps/components/DisconnectIntegrationModal";
 import type { BulkUpdatParams } from "@calcom/features/eventtypes/components/BulkEditDefaultForEventsModal";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { AppCategories } from "@calcom/prisma/enums";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
@@ -74,6 +75,13 @@ const IntegrationsContainer = ({
       {
         onSuccess: () => {
           showToast("Default app updated successfully", "success");
+          // FORK: Pendo track event.
+          pendo.track("default_conferencing_app_updated", {
+            appSlug,
+            hasAppLink: !!appLink,
+            previousDefaultAppSlug: defaultConferencingApp?.appSlug,
+            source: "installed_apps",
+          });
           utils.viewer.apps.getUsersDefaultConferencingApp.invalidate();
           onSuccessCallback();
         },
@@ -92,6 +100,12 @@ const IntegrationsContainer = ({
       },
       {
         onSuccess: () => {
+          // FORK: Pendo track event.
+          pendo.track("default_location_applied_to_event_types", {
+            eventTypeCount: eventTypeIds.length,
+            defaultAppSlug: defaultConferencingApp?.appSlug,
+            source: "installed_apps",
+          });
           utils.viewer.apps.getUsersDefaultConferencingApp.invalidate();
           callback();
         },
@@ -176,6 +190,8 @@ type ModalState = {
   isOpen: boolean;
   credentialId: null | number;
   teamId?: number;
+  // FORK: for the Pendo app_uninstalled track event.
+  appSlug?: string;
 };
 
 type PageProps = {
@@ -205,7 +221,7 @@ export default function InstalledApps({ category, connectedCalendars, installedC
   };
 
   const handleDisconnect = (credentialId: number, app: string, teamId?: number) => {
-    updateData({ isOpen: true, credentialId, teamId });
+    updateData({ isOpen: true, credentialId, teamId, appSlug: app });
   };
 
   const deleteCredentialMutation = trpc.viewer.credentials.delete.useMutation();
@@ -216,6 +232,14 @@ export default function InstalledApps({ category, connectedCalendars, installedC
       {
         onSuccess: () => {
           showToast(t("app_removed_successfully"), "success");
+          // FORK: Pendo track event.
+          pendo.track("app_uninstalled", {
+            credentialId,
+            appSlug: data.appSlug,
+            category,
+            teamId,
+            source: "installed_apps",
+          });
           callback();
           utils.viewer.apps.integrations.invalidate();
           utils.viewer.calendars.connectedCalendars.invalidate();

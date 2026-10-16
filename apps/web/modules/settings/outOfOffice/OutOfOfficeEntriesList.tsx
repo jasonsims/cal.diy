@@ -6,6 +6,7 @@ import SettingsHeader from "@calcom/features/settings/appDir/SettingsHeader";
 import ServerTrans from "@calcom/lib/components/ServerTrans";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { Button } from "@calcom/ui/components/button";
 import { EmptyScreen } from "@calcom/ui/components/empty-screen";
@@ -137,8 +138,18 @@ function OutOfOfficeEntriesListContent({
   ) as OutOfOfficeEntry[];
 
   const deleteOutOfOfficeEntryMutation = trpc.viewer.ooo.outOfOfficeEntryDelete.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast(t("success_deleted_entry_out_of_office"), "success");
+      // FORK: Pendo track event. The reason is sent as an id because custom reasons are free text.
+      const deletedOutOfOfficeEntry = data?.pages
+        .flatMap((page) => page.rows)
+        .find((entry) => entry.uuid === variables.outOfOfficeUid);
+      pendo.track("out_of_office_entry_deleted", {
+        outOfOfficeUid: variables.outOfOfficeUid,
+        reasonId: deletedOutOfOfficeEntry?.reason?.id,
+        hadRedirect: !!deletedOutOfOfficeEntry?.toUserId,
+        isPastEntry: deletedOutOfOfficeEntry ? deletedOutOfOfficeEntry.end < new Date() : undefined,
+      });
       setDeletedEntry((previousValue) => previousValue + 1);
     },
     onError: () => {

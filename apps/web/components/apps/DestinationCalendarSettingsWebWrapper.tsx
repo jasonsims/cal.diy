@@ -1,4 +1,5 @@
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
 import {
@@ -19,7 +20,13 @@ export const DestinationCalendarSettingsWebWrapper = ({
   });
   const utils = trpc.useUtils();
   const mutation = trpc.viewer.calendars.setDestinationCalendar.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // FORK: Pendo track event. Only integration types are sent: external calendar ids are often emails.
+      pendo.track("destination_calendar_set", {
+        integration: variables.integration,
+        previousIntegration: calendars.data?.destinationCalendar?.integration,
+        connectedCalendarsCount: calendars.data?.connectedCalendars.length,
+      });
       utils.viewer.calendars.connectedCalendars.invalidate();
     },
   });

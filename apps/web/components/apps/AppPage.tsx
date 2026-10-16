@@ -14,6 +14,7 @@ import { getAppOnboardingUrl } from "@calcom/lib/apps/getAppOnboardingUrl";
 import { APP_NAME, COMPANY_NAME, SUPPORT_MAIL_ADDRESS, WEBAPP_URL } from "@calcom/lib/constants";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc, type RouterOutputs } from "@calcom/trpc/react";
 import type { App as AppType } from "@calcom/types/App";
 import classNames from "@calcom/ui/classNames";
@@ -99,6 +100,15 @@ export const AppPage = ({
       if (data?.setupPending) return;
       setIsLoading(false);
       showToast(data?.message || t("app_successfully_installed"), "success");
+      // FORK: Pendo track event. Installs that continue through OAuth or a setup page (setupPending) finish
+      // outside this page and aren't counted here.
+      pendo.track("app_installed", {
+        slug,
+        app_type: type,
+        categories,
+        is_conferencing: isConferencing(categories),
+        installSource: "app_detail_page",
+      });
       await utils.viewer.apps.appCredentialsByType.invalidate({ appType: type });
     },
     onError: (error) => {
@@ -299,6 +309,8 @@ export const AppPage = ({
                 label={t("disconnect")}
                 credentialId={Number(existingCredentials[0].id)}
                 teamId={existingCredentials[0].teamId}
+                // FORK: for the Pendo app_uninstalled track event.
+                appSlug={slug}
                 onSuccess={() => appDbQuery.refetch()}
               />
             )}

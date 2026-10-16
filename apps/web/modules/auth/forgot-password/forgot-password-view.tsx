@@ -7,6 +7,7 @@ import type { CSSProperties, SyntheticEvent } from "react";
 import React from "react";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { Button } from "@calcom/ui/components/button";
 import { EmailField } from "@calcom/ui/components/form";
 
@@ -44,6 +45,8 @@ export default function ForgotPassword(props: PageProps) {
         setError(json);
       } else {
         setSuccess(true);
+        // FORK: Pendo track event. The email address is deliberately not sent.
+        pendo.track("password_reset_requested", { success: true });
       }
 
       return json;

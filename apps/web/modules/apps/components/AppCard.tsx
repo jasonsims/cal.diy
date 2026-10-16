@@ -14,6 +14,7 @@ import { getAppOnboardingUrl } from "@calcom/lib/apps/getAppOnboardingUrl";
 import { WEBAPP_URL } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { markdownToSafeHTML } from "@calcom/lib/markdownToSafeHTML";
+import { pendo } from "@calcom/lib/pendo";
 import type { AppFrontendPayload as App } from "@calcom/types/App";
 import type { CredentialFrontendPayload as Credential } from "@calcom/types/Credential";
 import classNames from "@calcom/ui/classNames";
@@ -46,6 +47,15 @@ export function AppCard({ app, credentials, searchText, userAdminTeams }: AppCar
     onSuccess: (data) => {
       if (data?.setupPending) return;
       showToast(t("app_successfully_installed"), "success");
+      // FORK: Pendo track event. Installs that continue through OAuth or a setup page (setupPending) finish
+      // outside this component and aren't counted here.
+      pendo.track("app_installed", {
+        slug: app.slug,
+        app_type: app.type,
+        categories: app.categories,
+        is_conferencing: isConferencing(app.categories || []),
+        installSource: "app_store",
+      });
     },
     onError: (error) => {
       if (error instanceof Error) showToast(error.message || t("app_could_not_be_installed"), "error");

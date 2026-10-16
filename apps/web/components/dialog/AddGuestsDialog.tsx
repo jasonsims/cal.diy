@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { Dialog } from "@calcom/features/components/controlled-dialog";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import { MultiEmail } from "@calcom/ui/components/address";
 import { Button } from "@calcom/ui/components/button";
@@ -29,8 +30,13 @@ export const AddGuestsDialog = (props: IAddGuestsDialog) => {
   const [isInvalidEmail, setIsInvalidEmail] = useState(false);
 
   const addGuestsMutation = trpc.viewer.bookings.addGuests.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       showToast(t("guests_added"), "success");
+      // FORK: Pendo track event. Only the count is sent, never the guest emails.
+      pendo.track("booking_guests_added", {
+        bookingId: variables.bookingId,
+        guestCount: variables.guests.length,
+      });
       setIsOpenDialog(false);
       setMultiEmailValue([""]);
       utils.viewer.bookings.invalidate();

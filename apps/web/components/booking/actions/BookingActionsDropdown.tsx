@@ -1,4 +1,6 @@
+import { DailyLocationType, guessEventLocationType } from "@calcom/app-store/locations";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import type { bookingMetadataSchema } from "@calcom/prisma/zod-utils";
 import { trpc } from "@calcom/trpc/react";
 import classNames from "@calcom/ui/classNames";
@@ -136,8 +138,17 @@ export function BookingActionsDropdown({
   });
 
   const noShowMutation = trpc.viewer.loggedInViewerRouter.markNoShow.useMutation({
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       showToast(data.message, "success");
+      // FORK: Pendo track event.
+      pendo.track("attendee_no_show_updated", {
+        bookingUid: variables.bookingUid,
+        attendeeCount: variables.attendees?.length ?? 0,
+        markedNoShowCount: variables.attendees?.filter((attendee) => attendee.noShow).length ?? 0,
+        unmarkedNoShowCount: variables.attendees?.filter((attendee) => !attendee.noShow).length ?? 0,
+        source: "actions_menu",
+        isOngoing,
+      });
       await utils.viewer.bookings.invalidate();
     },
     onError: (err) => {
@@ -146,8 +157,19 @@ export function BookingActionsDropdown({
   });
 
   const setLocationMutation = trpc.viewer.bookings.editLocation.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast(t("location_updated"), "success");
+      // FORK: Pendo track event. Only location types are sent, because a custom location value can be an
+      // address, a phone number or a meeting link.
+      pendo.track("booking_location_updated", {
+        bookingId: variables.bookingId,
+        newLocationType: guessEventLocationType(variables.newLocation)?.type ?? "organizer_input",
+        previousLocationType: isCalVideoLocation
+          ? DailyLocationType
+          : (guessEventLocationType(booking.location)?.type ?? "organizer_input"),
+        hasCredentialId: !!variables.credentialId,
+        wasCalVideoLocation: isCalVideoLocation,
+      });
       setIsOpenLocationDialog(false);
       utils.viewer.bookings.invalidate();
     },
@@ -344,8 +366,17 @@ export function BookingActionsDropdown({
     >(attendees.map((attendee) => ({ email: attendee.email, noShow: attendee.noShow })));
 
     const noShowMutation = trpc.viewer.loggedInViewerRouter.markNoShow.useMutation({
-      onSuccess: async (data) => {
+      onSuccess: async (data, variables) => {
         showToast(data.message, "success");
+        // FORK: Pendo track event.
+        pendo.track("attendee_no_show_updated", {
+          bookingUid: variables.bookingUid,
+          attendeeCount: variables.attendees?.length ?? 0,
+          markedNoShowCount: variables.attendees?.filter((attendee) => attendee.noShow).length ?? 0,
+          unmarkedNoShowCount: variables.attendees?.filter((attendee) => !attendee.noShow).length ?? 0,
+          source: "no_show_dialog",
+          isOngoing,
+        });
         setIsOpen(false);
         await utils.viewer.bookings.invalidate();
       },

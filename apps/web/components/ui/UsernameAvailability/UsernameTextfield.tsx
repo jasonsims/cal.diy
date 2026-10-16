@@ -9,6 +9,7 @@ import { Dialog } from "@calcom/features/components/controlled-dialog";
 import { fetchUsername } from "@calcom/lib/fetchUsername";
 import { useDebounce } from "@calcom/lib/hooks/useDebounce";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import type { AppRouter } from "@calcom/trpc/types/server/routers/_app";
 import { Button } from "@calcom/ui/components/button";
@@ -72,6 +73,12 @@ const UsernameTextfield = (props: ICustomUsernameProps & Partial<React.Component
 
   const updateUsernameMutation = trpc.viewer.me.updateProfile.useMutation({
     onSuccess: async () => {
+      // FORK: Pendo track event. Only derived values are sent, not the username itself.
+      pendo.track("username_changed", {
+        source: window.location.pathname.startsWith("/settings") ? "settings_profile" : "onboarding",
+        hadPreviousUsername: !!currentUsername,
+        usernameLength: inputUsernameValue?.length ?? 0,
+      });
       onSuccessMutation && (await onSuccessMutation());
       setOpenDialogSaveUsername(false);
       setCurrentUsername(inputUsernameValue);

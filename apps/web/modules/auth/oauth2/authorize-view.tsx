@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { APP_NAME } from "@calcom/lib/constants";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { pendo } from "@calcom/lib/pendo";
 import { trpc } from "@calcom/trpc/react";
 import useMeQuery from "@calcom/trpc/react/hooks/useMeQuery";
 import { Avatar } from "@calcom/ui/components/avatar";
@@ -61,6 +62,17 @@ export function Authorize() {
 
   const generateAuthCodeMutation = trpc.viewer.oAuth.generateAuthCode.useMutation({
     onSuccess: (data) => {
+      // FORK: Pendo track event, before redirecting to the client. Trusted clients are authorized
+      // automatically, without the consent screen.
+      pendo.track("oauth_consent_decision", {
+        clientId: client_id,
+        clientName: client?.name,
+        decision: client?.isTrusted ? "auto_approved" : "allowed",
+        scopes,
+        isTrusted: !!client?.isTrusted,
+        pkceUsed: !!code_challenge,
+        accountType: selectedAccount?.value.startsWith("team/") ? "team" : "personal",
+      });
       window.location.href =
         data.redirectUrl ?? `${client?.redirectUri}?code=${data.authorizationCode}&state=${state}`;
     },
@@ -246,6 +258,15 @@ export function Authorize() {
             className="mr-2"
             color="minimal"
             onClick={() => {
+              // FORK: Pendo track event.
+              pendo.track("oauth_consent_decision", {
+                clientId: client_id,
+                clientName: client.name,
+                decision: "denied",
+                scopes,
+                isTrusted: !!client.isTrusted,
+                pkceUsed: !!code_challenge,
+              });
               const separator = client.redirectUri.includes("?") ? "&" : "?";
               const params = new URLSearchParams();
               params.set("error", "access_denied");
